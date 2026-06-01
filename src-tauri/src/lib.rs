@@ -22,6 +22,7 @@ pub fn run() {
         config,
         http: reqwest::Client::new(),
         audio_tx: Mutex::new(None),
+        gen: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
     };
 
     tauri::Builder::default()
@@ -36,7 +37,8 @@ pub fn run() {
                     let scale = win.scale_factor().unwrap_or(1.0);
                     let margin = (12.0 * scale).round() as i32; // gap above taskbar
                     let x = work.position.x + ((work.size.width as i32 - wsize.width as i32) / 2).max(0);
-                    let y = work.position.y + work.size.height as i32 - wsize.height as i32 - margin;
+                    let y = (work.position.y + work.size.height as i32 - wsize.height as i32 - margin)
+                        .max(work.position.y); // never clip above the work area on small screens
                     let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
                 }
             }

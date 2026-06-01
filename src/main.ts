@@ -49,8 +49,13 @@ async function handleFinal(text: string) {
 
 // Switch practice <-> interview: restart the transcription session with the new
 // language hint. The mic keeps running; only the transcription stream is reset.
+// `switching` guards against a fast double-toggle racing two stop/start cycles.
+let switching = false;
 async function toggleMode() {
+  if (switching) return;
+  switching = true;
   mode = mode === "practice" ? "interview" : "practice";
+  store.current = null; // drop any in-flight partial from the old session
   conn = "切换中…";
   render();
   try {
@@ -59,22 +64,25 @@ async function toggleMode() {
     conn = "已连接，正在听…";
   } catch (e) {
     conn = `切换失败: ${e}`;
+  } finally {
+    switching = false;
   }
   render();
 }
 
-// Delegated handlers bound once on the stable root (the overlay rebuilds innerHTML
-// each render). Click on the mode button toggles mode; mousedown on the ⠿ handle
-// starts a native window drag (more reliable than data-tauri-drag-region).
-root.addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  if (target.closest("[data-action='toggle-mode']")) void toggleMode();
-});
+// One delegated mousedown handler on the stable root. We use mousedown (not click)
+// for BOTH actions because the overlay rebuilds innerHTML every ~340ms while you
+// speak — a click (mousedown+mouseup on the SAME node) would be lost when the node
+// is replaced mid-gesture.
 root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
+  if (target.closest("[data-action='toggle-mode']")) {
+    void toggleMode();
+    return;
+  }
   if (target.closest("[data-drag]")) {
     // setFocus before startDragging works around tauri-apps/tauri#11605.
-    // Requires the core:window:allow-start-dragging capability (see capabilities/default.json).
+    // Requires the core:window:allow-start-dragging capability (capabilities/default.json).
     const win = getCurrentWindow();
     win.setFocus().finally(() => void win.startDragging().catch(() => {}));
   }

@@ -1,7 +1,10 @@
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
-#app { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; }
-.bar { max-width: 92vw; margin: 0 0 18px; padding: 10px 14px;
+/* #app spans the bottom strip but is click-through (pointer-events:none); only the
+   visible .bar captures clicks, so the transparent margins don't block apps behind. */
+#app { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center;
+  pointer-events: none; }
+.bar { max-width: 92vw; margin: 0 0 18px; padding: 10px 14px; pointer-events: auto;
   background: rgba(15,16,20,.88); border: 1px solid rgba(255,255,255,.12);
   border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
 .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

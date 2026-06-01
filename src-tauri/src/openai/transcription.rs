@@ -25,8 +25,8 @@ pub fn parse_event(msg: &Value) -> TranscriptEvent {
 }
 
 /// Build the GA `session.update` payload that configures a transcription session:
-/// 16kHz mono PCM input, the transcription model + language, and server-side VAD
-/// so the server auto-segments utterances (emitting delta + completed events).
+/// 24kHz mono PCM input (GA requires >=24kHz), the transcription model + language,
+/// and server-side VAD so the server auto-segments utterances (delta + completed).
 pub fn session_update(model: &str, language: &str) -> Value {
     serde_json::json!({
         "type": "session.update",

@@ -1,8 +1,9 @@
 import type { Mode } from "../types";
 
-/** Detect whether a transcript is Chinese (any CJK char present) or English. */
+/** Detect whether a transcript is Chinese (any Han char present) or English. */
 export function detectLang(text: string): "zh" | "en" {
-  return /[一-鿿]/.test(text) ? "zh" : "en";
+  // \p{Script=Han} covers the base block plus extensions/compat ideographs.
+  return /\p{Script=Han}/u.test(text) ? "zh" : "en";
 }
 
 /** The language hint sent to the transcription session for each mode. */
