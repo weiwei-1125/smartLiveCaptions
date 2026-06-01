@@ -1,0 +1,5 @@
+{
+  "openai_api_key": "sk-REPLACE_ME",
+  "translation_model": "gpt-4.1-nano",
+  "transcription_model": "gpt-realtime-whisper"
+}
