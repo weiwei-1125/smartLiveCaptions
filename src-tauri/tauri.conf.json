@@ -13,9 +13,15 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "tmp-scaffold",
-        "width": 800,
-        "height": 600
+        "title": "smartLiveCaptions",
+        "width": 900,
+        "height": 320,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false
       }
     ],
     "security": {
