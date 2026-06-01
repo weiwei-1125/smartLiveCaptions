@@ -14,10 +14,11 @@ function chrome(mode: Mode = "practice", micOn = true): OverlayChrome {
 }
 
 describe("renderOverlay", () => {
-  it("renders a drag handle (data-drag), a mic toggle, and a mode button", () => {
+  it("renders a drag handle, mic toggle, mode button, and close button", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice"));
     expect(root.querySelector("[data-drag]")).not.toBeNull();
     expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
+    expect(root.querySelector("[data-action='close']")).not.toBeNull();
     const btn = root.querySelector("[data-action='toggle-mode']");
     expect(btn).not.toBeNull();
     expect(btn!.textContent).toContain("练口语");

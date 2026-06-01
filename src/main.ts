@@ -16,7 +16,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Mode } from "./types";
 
 const root = document.getElementById("app")!;
-const store = new CaptionStore({ maxHistory: 12 });
+// In-memory only (cleared on exit). Large enough to scroll back through a session.
+const store = new CaptionStore({ maxHistory: 200 });
 
 let mode: Mode = "practice";
 let micOn = true;
@@ -39,7 +40,9 @@ function onFrame(frame: Int16Array) {
   if (vad.process(frame)) {
     framesSent++;
     void pushAudio(frame);
-    if (framesSent % 4 === 0) render(); // refresh the mic-frame counter periodically
+    // The diagnostic counter is non-essential; refresh it rarely to avoid re-render
+    // churn that would fight scroll-back. Caption updates re-render on store changes.
+    if (framesSent % 30 === 0) render();
   }
 }
 
@@ -98,6 +101,10 @@ async function toggleMode() {
 // is replaced mid-gesture.
 root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
+  if (target.closest("[data-action='close']")) {
+    void getCurrentWindow().close();
+    return;
+  }
   if (target.closest("[data-action='toggle-mic']")) {
     void toggleMic();
     return;
