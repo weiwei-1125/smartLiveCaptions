@@ -1,22 +1,44 @@
-import { invoke } from "@tauri-apps/api/core";
+import "./styles.css";
+import { AudioCapture } from "./audio/capture";
+import { EnergyVad } from "./audio/vad";
+import { CaptionStore } from "./state/captionStore";
+import { renderOverlay } from "./ui/overlay";
+import { startTranscription, pushAudio, onTranscript } from "./services/transcription";
+import { translate } from "./services/translation";
+import { langPairForMode } from "./config/langPrompts";
 
-let greetInputEl: HTMLInputElement | null;
-let greetMsgEl: HTMLElement | null;
+const root = document.getElementById("app")!;
+const store = new CaptionStore({ maxHistory: 5 });
+store.subscribe(() => renderOverlay(root, store));
 
-async function greet() {
-  if (greetMsgEl && greetInputEl) {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsgEl.textContent = await invoke("greet", {
-      name: greetInputEl.value,
-    });
-  }
+const vad = new EnergyVad({ threshold: 600, hangoverFrames: 8 });
+const capture = new AudioCapture();
+const pair = langPairForMode("practice"); // zh -> en
+
+async function main() {
+  await startTranscription(pair.source);
+
+  await onTranscript(async (m) => {
+    if (m.kind === "partial") {
+      store.setPartial(m.text, pair.source);
+    } else if (m.kind === "final" && m.text.trim()) {
+      const id = store.commit(m.text, pair.source);
+      try {
+        const en = await translate(m.text, pair);
+        store.setTranslation(id, en);
+      } catch (e) {
+        store.setTranslation(id, `⚠️ 翻译失败: ${e}`);
+      }
+    }
+  });
+
+  await capture.start((frame) => {
+    if (vad.process(frame)) {
+      void pushAudio(frame);
+    }
+  });
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
-  document.querySelector("#greet-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    greet();
-  });
+main().catch((e) => {
+  root.innerHTML = `<div class="bar"><div class="orig en">启动失败: ${e}</div></div>`;
 });
