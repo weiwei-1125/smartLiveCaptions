@@ -1,0 +1,28 @@
+# Brainstorm mockups (visual companion)
+.superpowers/
+
+# Secrets / config
+.env
+.env.local
+*.local
+config.local.json
+
+# Node
+node_modules/
+dist/
+build/
+
+# Tauri / Rust
+src-tauri/target/
+target/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
