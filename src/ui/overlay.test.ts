@@ -1,27 +1,38 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { renderOverlay } from "./overlay";
+import { renderOverlay, type OverlayChrome } from "./overlay";
 import { CaptionStore } from "../state/captionStore";
+import type { Mode } from "../types";
 
 let root: HTMLElement;
 beforeEach(() => {
   root = document.createElement("div");
 });
 
+function chrome(mode: Mode = "practice", micOn = true): OverlayChrome {
+  return { statusText: "已连接", mode, micOn };
+}
+
 describe("renderOverlay", () => {
-  it("renders a drag handle (data-drag) and a clickable mode button", () => {
-    const store = new CaptionStore({ maxHistory: 5 });
-    renderOverlay(root, store, { statusText: "已连接", mode: "practice" });
+  it("renders a drag handle (data-drag), a mic toggle, and a mode button", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice"));
     expect(root.querySelector("[data-drag]")).not.toBeNull();
+    expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
     const btn = root.querySelector("[data-action='toggle-mode']");
     expect(btn).not.toBeNull();
     expect(btn!.textContent).toContain("练口语");
   });
 
   it("shows the interview label when mode is interview", () => {
-    const store = new CaptionStore({ maxHistory: 5 });
-    renderOverlay(root, store, { statusText: "x", mode: "interview" });
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("interview"));
     expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("面试");
+  });
+
+  it("reflects the mic on/off state on the mic button", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice", true));
+    expect(root.querySelector(".ctl.mic")!.classList.contains("on")).toBe(true);
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice", false));
+    expect(root.querySelector(".ctl.mic")!.classList.contains("off")).toBe(true);
   });
 
   it("renders history oldest-first then the live current block last", () => {
@@ -29,7 +40,7 @@ describe("renderOverlay", () => {
     store.commit("第一句", "zh");
     store.commit("第二句", "zh");
     store.setPartial("正在说", "zh");
-    renderOverlay(root, store, { statusText: "x", mode: "practice" });
+    renderOverlay(root, store, chrome());
     const blocks = [...root.querySelectorAll(".blk")];
     expect(blocks.length).toBe(3);
     expect(blocks[0].textContent).toContain("第一句"); // oldest at top
@@ -41,7 +52,7 @@ describe("renderOverlay", () => {
     const store = new CaptionStore({ maxHistory: 5 });
     store.commit("你好", "zh");
     store.commit("Hello", "en");
-    renderOverlay(root, store, { statusText: "x", mode: "practice" });
+    renderOverlay(root, store, chrome());
     expect(root.querySelector(".orig.zh")).not.toBeNull();
     expect(root.querySelector(".orig.en")).not.toBeNull();
   });
@@ -49,10 +60,10 @@ describe("renderOverlay", () => {
   it("renders a translation line only when a translation is present", () => {
     const store = new CaptionStore({ maxHistory: 5 });
     const id = store.commit("你好", "zh");
-    renderOverlay(root, store, { statusText: "x", mode: "practice" });
+    renderOverlay(root, store, chrome());
     expect(root.querySelector(".trans")).toBeNull(); // no translation yet
     store.setTranslation(id, "Hello");
-    renderOverlay(root, store, { statusText: "x", mode: "practice" });
+    renderOverlay(root, store, chrome());
     expect(root.querySelector(".trans")!.textContent).toContain("Hello");
   });
 
@@ -60,7 +71,7 @@ describe("renderOverlay", () => {
     const store = new CaptionStore({ maxHistory: 5 });
     const id = store.commit("<script>", "en");
     store.setTranslation(id, "a & b <x>");
-    renderOverlay(root, store, { statusText: "x", mode: "practice" });
+    renderOverlay(root, store, chrome());
     expect(root.innerHTML).not.toContain("<script>");
     expect(root.innerHTML).toContain("&lt;script&gt;");
     expect(root.innerHTML).toContain("a &amp; b &lt;x&gt;");

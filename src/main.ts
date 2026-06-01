@@ -16,9 +16,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Mode } from "./types";
 
 const root = document.getElementById("app")!;
-const store = new CaptionStore({ maxHistory: 5 });
+const store = new CaptionStore({ maxHistory: 12 });
 
 let mode: Mode = "practice";
+let micOn = true;
 let conn = "启动中…";
 let framesSent = 0; // diagnostic: mic frames forwarded (climbs while you speak)
 
@@ -26,12 +27,33 @@ function statusText(): string {
   return `${conn} · 🎤 ${framesSent}`;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode });
+  renderOverlay(root, store, { statusText: statusText(), mode, micOn });
 }
 store.subscribe(render);
 
 const vad = new EnergyVad({ threshold: 600, hangoverFrames: 8 });
 const capture = new AudioCapture();
+
+// Gate mic frames through the VAD and forward speech to the transcription stream.
+function onFrame(frame: Int16Array) {
+  if (vad.process(frame)) {
+    framesSent++;
+    void pushAudio(frame);
+    if (framesSent % 4 === 0) render(); // refresh the mic-frame counter periodically
+  }
+}
+
+// Mic on/off: releases the microphone when off (privacy + no audio uploaded).
+async function toggleMic() {
+  micOn = !micOn;
+  try {
+    if (micOn) await capture.start(onFrame);
+    else capture.stop();
+  } catch (e) {
+    conn = `麦克风错误: ${e}`;
+  }
+  render();
+}
 
 // Decide per finished sentence whether to translate (and which direction) or just
 // show the original, based on the current mode + detected language.
@@ -76,6 +98,10 @@ async function toggleMode() {
 // is replaced mid-gesture.
 root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
+  if (target.closest("[data-action='toggle-mic']")) {
+    void toggleMic();
+    return;
+  }
   if (target.closest("[data-action='toggle-mode']")) {
     void toggleMode();
     return;
@@ -108,13 +134,7 @@ async function main() {
   conn = "已连接，正在听…";
   render();
 
-  await capture.start((frame) => {
-    if (vad.process(frame)) {
-      framesSent++;
-      void pushAudio(frame);
-      if (framesSent % 4 === 0) render(); // refresh the mic-frame counter periodically
-    }
-  });
+  await capture.start(onFrame);
 }
 
 main().catch((e) => {

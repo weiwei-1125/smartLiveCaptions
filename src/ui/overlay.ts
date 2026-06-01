@@ -22,21 +22,23 @@ function modeLabel(mode: Mode): string {
 export interface OverlayChrome {
   statusText: string;
   mode: Mode;
+  micOn: boolean;
 }
 
 export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: OverlayChrome): void {
   const blocks: string[] = [];
-  // oldest at top, newest/current at bottom
+  // oldest at top, newest/current at bottom (the captions area is bottom-aligned)
   for (const u of [...store.history].reverse()) blocks.push(blockHtml(u, false));
   if (store.current) blocks.push(blockHtml(store.current, true));
 
-  // The ⠿ handle (data-drag) starts a window drag via startDragging() (wired in
-  // main.ts) — more reliable than data-tauri-drag-region. The mode button is a
-  // sibling so it stays clickable and toggles practice/interview.
+  // Top bar: ⠿ drag handle (data-drag → startDragging in main.ts) + mic toggle + mode toggle.
+  // The buttons are siblings of the drag handle so they stay clickable.
+  const micBtn = `<button class="ctl mic ${chrome.micOn ? "on" : "off"}" data-action="toggle-mic" title="收音开关">${chrome.micOn ? "🎤 收音" : "🔇 已停"}</button>`;
+  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换模式">${modeLabel(chrome.mode)}</button>`;
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    <button class="mode" data-action="toggle-mode" title="切换模式">${modeLabel(chrome.mode)}</button>
+    ${micBtn}${modeBtn}
   </div>`;
 
-  root.innerHTML = `<div class="bar">${topbar}${blocks.join("")}</div>`;
+  root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;
 }
