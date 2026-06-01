@@ -83,8 +83,14 @@ pub async fn connect(
     let mut req = "wss://api.openai.com/v1/realtime?intent=transcription"
         .into_client_request()
         .map_err(|e| format!("bad ws request: {e}"))?;
-    req.headers_mut().insert("Authorization", format!("Bearer {api_key}").parse().unwrap());
-    req.headers_mut().insert("OpenAI-Beta", "realtime=v1".parse().unwrap());
+    let auth = format!("Bearer {api_key}")
+        .parse()
+        .map_err(|e| format!("invalid api_key header: {e}"))?;
+    req.headers_mut().insert("Authorization", auth);
+    let beta = "realtime=v1"
+        .parse()
+        .map_err(|e| format!("invalid beta header: {e}"))?;
+    req.headers_mut().insert("OpenAI-Beta", beta);
 
     let (ws, _) = tokio_tungstenite::connect_async(req).await.map_err(|e| format!("ws connect failed: {e}"))?;
     let (mut write, mut read) = ws.split();
