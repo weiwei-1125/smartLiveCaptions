@@ -1,4 +1,4 @@
-export type Mode = "practice"; // interview added in P2
+export type Mode = "practice" | "interview";
 
 export interface LangPair {
   source: "zh" | "en";
@@ -13,4 +13,4 @@ export interface Utterance {
   done: boolean;        // true once the sentence is final
 }
 
-export type PcmFrame = Int16Array; // 16-bit PCM mono @ 16kHz
+export type PcmFrame = Int16Array; // 16-bit PCM mono @ 24kHz (GA Realtime requires >=24kHz)

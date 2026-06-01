@@ -1,0 +1,39 @@
+// Dev-only preview of the caption overlay with mock data (no Tauri IPC).
+// Load at http://localhost:1420/overlay-preview.html and call window.setMode("practice"|"interview").
+import "../styles.css";
+import { CaptionStore } from "../state/captionStore";
+import { renderOverlay } from "../ui/overlay";
+import type { Mode } from "../types";
+
+const root = document.getElementById("app")!;
+const label = document.getElementById("label")!;
+
+// styles.css makes html/body transparent (for the real overlay); give the preview a
+// visible desktop-like backdrop so the bar is readable. Inline style wins over the import.
+document.body.style.background = "linear-gradient(135deg,#2a3f5f 0%,#3b2f55 100%)";
+document.body.style.minHeight = "100vh";
+
+function sampleStore(mode: Mode): CaptionStore {
+  const s = new CaptionStore({ maxHistory: 5 });
+  if (mode === "practice") {
+    let id = s.commit("我们改到下周三吧", "zh");
+    s.setTranslation(id, "Let's push it to next Wednesday.");
+    id = s.commit("Hello there.", "en"); // English in practice mode → passthrough, no translation
+    s.setPartial("今天天气真不错", "zh"); // live, streaming (blue + cursor)
+  } else {
+    let id = s.commit("Thanks for joining us today.", "en");
+    s.setTranslation(id, "感谢你今天参加。");
+    id = s.commit("Can you walk me through a project you led?", "en");
+    s.setTranslation(id, "你能讲一个你主导过的项目吗？");
+    s.setPartial("Sure, let me think for a second.", "en"); // live
+  }
+  return s;
+}
+
+function show(mode: Mode) {
+  label.textContent = `Overlay preview · mode = ${mode}`;
+  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听… · 🎤 42", mode });
+}
+
+(window as unknown as { setMode: (m: Mode) => void }).setMode = show;
+show("practice");

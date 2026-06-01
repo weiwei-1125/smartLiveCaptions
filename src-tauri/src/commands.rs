@@ -44,8 +44,9 @@ pub async fn start_transcription(
     let api_key = state.config.openai_api_key.clone();
     let model = state.config.transcription_model.clone();
     let app2 = app.clone();
+    let app_err = app.clone();
     tokio::spawn(async move {
-        let _ = transcription::connect(api_key, model, language, rx, move |ev| {
+        let result = transcription::connect(api_key, model, language, rx, move |ev| {
             let payload = match ev {
                 transcription::TranscriptEvent::Partial(t) => Some(TranscriptPayload {
                     kind: "partial".into(),
@@ -55,6 +56,11 @@ pub async fn start_transcription(
                     kind: "final".into(),
                     text: t,
                 }),
+                transcription::TranscriptEvent::Error(e) => {
+                    eprintln!("[ws-error] {e}");
+                    let _ = app2.emit("conn_error", e);
+                    None
+                }
                 transcription::TranscriptEvent::Other => None,
             };
             if let Some(p) = payload {
@@ -62,6 +68,13 @@ pub async fn start_transcription(
             }
         })
         .await;
+        match result {
+            Err(e) => {
+                eprintln!("[conn] transcription connect failed: {e}");
+                let _ = app_err.emit("conn_error", e);
+            }
+            Ok(()) => eprintln!("[conn] transcription connection closed"),
+        }
     });
     Ok(())
 }

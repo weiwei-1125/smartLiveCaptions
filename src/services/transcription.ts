@@ -23,3 +23,7 @@ export async function pushAudio(pcm: Int16Array): Promise<void> {
 export function onTranscript(cb: (m: TranscriptMsg) => void): Promise<UnlistenFn> {
   return listen<TranscriptMsg>("transcript", (e) => cb(e.payload));
 }
+
+export function onConnError(cb: (msg: string) => void): Promise<UnlistenFn> {
+  return listen<string>("conn_error", (e) => cb(e.payload));
+}

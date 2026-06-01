@@ -31,6 +31,10 @@ Thumbs.db
 # Vite
 dist-ssr
 
+# Dev/test artifacts (Playwright output + overlay preview screenshots)
+.playwright-mcp/
+preview-*.png
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*

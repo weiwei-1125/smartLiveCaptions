@@ -4,6 +4,7 @@ use serde_json::Value;
 pub enum TranscriptEvent {
     Partial(String),
     Final(String),
+    Error(String),
     Other,
 }
 
@@ -16,18 +17,28 @@ pub fn parse_event(msg: &Value) -> TranscriptEvent {
         Some("conversation.item.input_audio_transcription.completed") => {
             TranscriptEvent::Final(msg["transcript"].as_str().unwrap_or("").to_string())
         }
+        Some("error") => {
+            TranscriptEvent::Error(msg["error"]["message"].as_str().unwrap_or("unknown error").to_string())
+        }
         _ => TranscriptEvent::Other,
     }
 }
 
-/// Build the session.update payload that configures language + audio format.
+/// Build the GA `session.update` payload that configures a transcription session:
+/// 16kHz mono PCM input, the transcription model + language, and server-side VAD
+/// so the server auto-segments utterances (emitting delta + completed events).
 pub fn session_update(model: &str, language: &str) -> Value {
     serde_json::json!({
-        "type": "transcription_session.update",
+        "type": "session.update",
         "session": {
-            "input_audio_format": "pcm16",
-            "input_audio_transcription": { "model": model, "language": language },
-            "turn_detection": { "type": "server_vad" }
+            "type": "transcription",
+            "audio": {
+                "input": {
+                    "format": { "type": "audio/pcm", "rate": 24000 },
+                    "transcription": { "model": model, "language": language },
+                    "turn_detection": { "type": "server_vad" }
+                }
+            }
         }
     })
 }
@@ -55,10 +66,18 @@ mod tests {
     }
 
     #[test]
+    fn parses_error() {
+        let e = parse_event(&json!({"type":"error","error":{"message":"bad model"}}));
+        assert_eq!(e, TranscriptEvent::Error("bad model".into()));
+    }
+
+    #[test]
     fn session_update_sets_language_and_model() {
-        let s = session_update("gpt-realtime-whisper", "zh");
-        assert_eq!(s["session"]["input_audio_transcription"]["language"], "zh");
-        assert_eq!(s["session"]["input_audio_transcription"]["model"], "gpt-realtime-whisper");
+        let s = session_update("gpt-4o-transcribe", "zh");
+        assert_eq!(s["type"], "session.update");
+        assert_eq!(s["session"]["type"], "transcription");
+        assert_eq!(s["session"]["audio"]["input"]["transcription"]["language"], "zh");
+        assert_eq!(s["session"]["audio"]["input"]["transcription"]["model"], "gpt-4o-transcribe");
     }
 }
 
@@ -66,11 +85,6 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::{client::IntoClientRequest, Message};
 use base64::Engine;
-
-/// A handle to push PCM16 audio into the live transcription stream.
-pub struct TranscriptionHandle {
-    pub audio_tx: mpsc::UnboundedSender<Vec<u8>>, // raw PCM16 little-endian bytes
-}
 
 /// Spawn the realtime transcription connection. Calls `on_event` for each parsed event.
 pub async fn connect(
@@ -87,10 +101,8 @@ pub async fn connect(
         .parse()
         .map_err(|e| format!("invalid api_key header: {e}"))?;
     req.headers_mut().insert("Authorization", auth);
-    let beta = "realtime=v1"
-        .parse()
-        .map_err(|e| format!("invalid beta header: {e}"))?;
-    req.headers_mut().insert("OpenAI-Beta", beta);
+    // NOTE: GA Realtime API — do NOT send the OpenAI-Beta header (it forces the
+    // removed beta shape and is rejected with `beta_api_shape_disabled`).
 
     let (ws, _) = tokio_tungstenite::connect_async(req).await.map_err(|e| format!("ws connect failed: {e}"))?;
     let (mut write, mut read) = ws.split();
@@ -112,10 +124,23 @@ pub async fn connect(
     });
 
     // Read server events.
-    while let Some(Ok(msg)) = read.next().await {
-        if let Message::Text(txt) = msg {
-            if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-                on_event(parse_event(&v));
+    eprintln!("[ws] connected; sent session_update (model={model}, language={language})");
+    while let Some(msg) = read.next().await {
+        match msg {
+            Ok(Message::Text(txt)) => {
+                // Full raw dump only when SLC_DEBUG_WS is set; otherwise stay quiet
+                // (error frames are surfaced via TranscriptEvent::Error below).
+                if std::env::var("SLC_DEBUG_WS").is_ok() {
+                    eprintln!("[ws-recv] {txt}");
+                }
+                if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                    on_event(parse_event(&v));
+                }
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("[ws-err] {e}");
+                break;
             }
         }
     }

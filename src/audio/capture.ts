@@ -7,7 +7,9 @@ export class AudioCapture {
 
   async start(onFrame: FrameHandler): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
-    this.ctx = new AudioContext({ sampleRate: 16000 });
+    // GA Realtime transcription requires input PCM rate >= 24000; capture must
+    // match the rate declared in the session.update (see openai/transcription.rs).
+    this.ctx = new AudioContext({ sampleRate: 24000 });
     const src = this.ctx.createMediaStreamSource(this.stream);
     this.node = this.ctx.createScriptProcessor(2048, 1, 1);
     this.node.onaudioprocess = (e) => {

@@ -1,12 +1,4 @@
-import type { Mode, LangPair } from "../types";
-
-export function langPairForMode(mode: Mode): LangPair {
-  switch (mode) {
-    case "practice":
-      // practice = speak Chinese, see English
-      return { source: "zh", target: "en" };
-  }
-}
+import type { LangPair } from "../types";
 
 const LANG_NAME: Record<"zh" | "en", string> = { zh: "Chinese", en: "English" };
 
