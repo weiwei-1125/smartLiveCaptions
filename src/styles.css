@@ -52,13 +52,17 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
   margin-left: 3px; vertical-align: -2px; animation: blink .8s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Per-line copy buttons: hidden until you hover the caption line. */
+/* Per-line copy buttons: hidden until you hover the caption line. Kept dark/subdued so
+   they blend into the panel and don't compete with the caption text; they only brighten
+   to the blue accent on direct hover. */
 .copy { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); opacity: 0;
-  cursor: pointer; background: rgba(40, 42, 48, .92); border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: 6px; color: #cdd5e2; font-size: 12px; line-height: 1; padding: 3px 6px;
-  font-family: inherit; transition: opacity .12s; }
-.blk:hover .copy { opacity: .85; }
-.copy:hover { opacity: 1; background: rgba(91, 141, 239, .45); }
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  background: rgba(18, 20, 26, .9); border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 6px; color: #828a96; line-height: 1; padding: 4px 6px;
+  font-family: inherit; transition: opacity .12s, background .12s, color .12s, border-color .12s; }
+.blk:hover .copy { opacity: .8; }
+.copy:hover { opacity: 1; background: rgba(91, 141, 239, .4); color: #eef1f6;
+  border-color: rgba(91, 141, 239, .55); }
 
 /* Transient "copied" toast (appended to <body>, survives overlay re-renders). */
 .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);

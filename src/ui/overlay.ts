@@ -5,8 +5,13 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 }
 
+// Monochrome copy glyph (inherits the button's `color` via currentColor, so it stays
+// muted at rest and brightens on hover — unlike a 📋 emoji, which ignores CSS color).
+const COPY_ICON =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
+
 function copyBtn(id: number, field: "orig" | "trans", label: string): string {
-  return `<button class="copy" data-action="copy" data-id="${id}" data-field="${field}" title="${label}">📋</button>`;
+  return `<button class="copy" data-action="copy" data-id="${id}" data-field="${field}" title="${label}">${COPY_ICON}</button>`;
 }
 
 function blockHtml(u: Utterance, live: boolean): string {
