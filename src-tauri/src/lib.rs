@@ -3,23 +3,33 @@ mod openai;
 mod commands;
 
 use commands::AppState;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use tauri::Manager;
+
+/// Resolve the config at startup. Priority:
+///   1. The per-user saved config (where the settings panel writes the user's own key).
+///   2. A dev-only `config.local.json` fallback — gitignored and NOT in bundle resources,
+///      so it exists only when running `tauri dev`, never in a shipped installer.
+///   3. A key-less default, so a fresh install starts empty and prompts for a key.
+/// This guarantees a distributed build ships with NO key baked in.
+fn load_startup_config(app: &tauri::App) -> config::AppConfig {
+    if let Ok(dir) = app.path().app_config_dir() {
+        if let Ok(cfg) = config::load_from_file(&dir.join("config.json")) {
+            if !cfg.openai_api_key.trim().is_empty() {
+                return cfg;
+            }
+        }
+    }
+    if let Ok(cfg) = config::load_from_file(std::path::Path::new("config.local.json")) {
+        return cfg;
+    }
+    config::AppConfig::keyless()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let cfg_path = std::path::Path::new("config.local.json");
-    let config = config::load_from_file(cfg_path).unwrap_or_else(|e| {
-        eprintln!("WARNING: {e}. Copy config.local.example.json to config.local.json and set your key.");
-        config::AppConfig {
-            openai_api_key: String::new(),
-            translation_model: "gpt-4.1-nano".into(),
-            transcription_model: "gpt-4o-transcribe".into(),
-        }
-    });
-
     let state = AppState {
-        config,
+        config: RwLock::new(config::AppConfig::keyless()),
         http: reqwest::Client::new(),
         audio_tx: Mutex::new(None),
         gen: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -27,7 +37,14 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(state)
         .setup(|app| {
+            // Load the persisted/dev/keyless key into the managed config.
+            let cfg = load_startup_config(app);
+            if let Ok(mut guard) = app.state::<AppState>().config.write() {
+                *guard = cfg;
+            }
+
             // Dock the overlay near the bottom-center of the primary monitor on launch.
             // work_area() excludes the taskbar (unlike monitor.size()/position()).
             if let Some(win) = app.get_webview_window("main") {
@@ -44,9 +61,9 @@ pub fn run() {
             }
             Ok(())
         })
-        .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::has_api_key,
+            commands::set_api_key,
             commands::translate,
             commands::start_transcription,
             commands::push_audio,

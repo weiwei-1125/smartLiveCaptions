@@ -4,6 +4,7 @@ import { EnergyVad } from "./audio/vad";
 import { CaptionStore } from "./state/captionStore";
 import { SentenceAssembler } from "./state/sentenceAssembler";
 import { renderOverlay } from "./ui/overlay";
+import { openSettings, closeSettings } from "./ui/settings";
 import {
   startTranscription,
   stopTranscription,
@@ -12,6 +13,7 @@ import {
   onConnError,
 } from "./services/transcription";
 import { translate } from "./services/translation";
+import { hasApiKey, setApiKey } from "./services/settings";
 import { planUtterance, detectLang, transcriptionLangHint } from "./config/modes";
 import { toSimplified } from "./config/simplify";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -221,6 +223,10 @@ root.addEventListener("mousedown", (e) => {
     void toggleMode();
     return;
   }
+  if (target.closest("[data-action='open-settings']")) {
+    showSettings(false); // dismissable: changing the key while running
+    return;
+  }
   const segEl = target.closest("[data-action='set-level']") as HTMLElement | null;
   if (segEl) {
     void setLevel(segEl.dataset.level as Level);
@@ -233,6 +239,32 @@ root.addEventListener("mousedown", (e) => {
     win.setFocus().finally(() => void win.startDragging().catch(() => {}));
   }
 });
+
+// Whether the transcription pipeline (WS + mic) has been started. Gated on having a
+// key so we don't open a connection with an empty key on a fresh install.
+let started = false;
+async function startPipeline() {
+  await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
+  started = true;
+  conn = "已连接，正在听…";
+  render();
+  await capture.start(onFrame);
+}
+
+// Open the API-key settings modal. firstRun = no key yet → the modal can't be dismissed
+// (the app is useless without a key). On save we persist, then either kick off the
+// pipeline (first run) or reconnect with the new key (changing it while running).
+function showSettings(firstRun: boolean) {
+  openSettings({
+    dismissable: !firstRun,
+    onSave: async (key) => {
+      await setApiKey(key); // persist to the per-user config + apply live (may throw)
+      if (!started) await startPipeline();
+      else await restartTranscription();
+      closeSettings();
+    },
+  });
+}
 
 async function main() {
   render(); // render the bar immediately so the (transparent) window is visible
@@ -255,11 +287,13 @@ async function main() {
     }
   });
 
-  await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
-  conn = "已连接，正在听…";
-  render();
-
-  await capture.start(onFrame);
+  if (await hasApiKey()) {
+    await startPipeline();
+  } else {
+    conn = "请先设置 API Key ⚙️";
+    render();
+    showSettings(true); // first run — must enter a key to continue
+  }
 }
 
 main().catch((e) => {

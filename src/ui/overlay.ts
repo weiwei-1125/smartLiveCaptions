@@ -66,10 +66,11 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   ).join("")}</div>`;
   const copyAllBtn = `<button class="ctl" data-action="copy-all" title="复制全部对话（中英）">📋</button>`;
   const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
+  const settingsBtn = `<button class="ctl" data-action="open-settings" title="设置 API Key">⚙️</button>`;
   const closeBtn = `<button class="ctl close" data-action="close" title="退出">✕</button>`;
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    ${seg}${micBtn}${modeBtn}${copyAllBtn}${clearBtn}${closeBtn}
+    ${seg}${micBtn}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${closeBtn}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

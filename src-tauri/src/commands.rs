@@ -2,18 +2,25 @@ use crate::config::AppConfig;
 use crate::openai::{transcription, translation};
 use serde::Serialize;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
-use tauri::{Emitter, State};
+use std::sync::{Arc, Mutex, RwLock};
+use tauri::{Emitter, Manager, State};
 use tokio::sync::mpsc;
 
 pub struct AppState {
-    pub config: AppConfig,
+    /// Mutable so the user can set/change their API key at runtime (settings panel).
+    /// Reads clone the field they need; writes go through `set_api_key`.
+    pub config: RwLock<AppConfig>,
     pub http: reqwest::Client,
     pub audio_tx: Mutex<Option<mpsc::UnboundedSender<Vec<u8>>>>,
     /// Monotonic session generation. Bumped on every start/stop so events from a
     /// superseded transcription session (e.g. after a mode switch) are dropped
     /// instead of being misclassified under the new mode.
     pub gen: Arc<AtomicU64>,
+}
+
+/// Read a clone of the current config, tolerating a poisoned lock instead of panicking.
+fn read_config(state: &AppState) -> AppConfig {
+    state.config.read().unwrap_or_else(|p| p.into_inner()).clone()
 }
 
 #[derive(Clone, Serialize)]
@@ -31,15 +38,34 @@ fn lock_tx(
 
 #[tauri::command]
 pub fn has_api_key(state: State<AppState>) -> bool {
-    !state.config.openai_api_key.trim().is_empty()
+    !read_config(&state).openai_api_key.trim().is_empty()
+}
+
+/// Persist the user's own OpenAI key to the per-user app config dir and apply it to
+/// the live config (no restart needed). The key is NEVER bundled — a fresh install
+/// has no config file and starts key-less until the user sets it here.
+#[tauri::command]
+pub fn set_api_key(app: tauri::AppHandle, state: State<AppState>, key: String) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no app config dir: {e}"))?
+        .join("config.json");
+    let new_cfg = {
+        let mut cfg = state.config.write().unwrap_or_else(|p| p.into_inner());
+        cfg.openai_api_key = key.trim().to_string();
+        cfg.clone()
+    };
+    crate::config::save_to_file(&path, &new_cfg)
 }
 
 #[tauri::command]
 pub async fn translate(state: State<'_, AppState>, prompt: String) -> Result<String, String> {
+    let cfg = read_config(&state);
     translation::translate(
         &state.http,
-        &state.config.openai_api_key,
-        &state.config.translation_model,
+        &cfg.openai_api_key,
+        &cfg.translation_model,
         &prompt,
     )
     .await
@@ -59,8 +85,9 @@ pub async fn start_transcription(
 
     let (tx, rx) = mpsc::unbounded_channel::<Vec<u8>>();
     *lock_tx(&state) = Some(tx);
-    let api_key = state.config.openai_api_key.clone();
-    let model = state.config.transcription_model.clone();
+    let cfg = read_config(&state);
+    let api_key = cfg.openai_api_key;
+    let model = cfg.transcription_model;
     let app2 = app.clone();
     let app_err = app.clone();
     tokio::spawn(async move {

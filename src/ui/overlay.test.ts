@@ -27,6 +27,11 @@ describe("renderOverlay", () => {
     expect(btn!.textContent).toContain("中→英");
   });
 
+  it("renders a settings (gear) button", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
+    expect(root.querySelector("[data-action='open-settings']")).not.toBeNull();
+  });
+
   it("shows the en→zh direction when mode is en2zh", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("en2zh"));
     expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("英→中");
