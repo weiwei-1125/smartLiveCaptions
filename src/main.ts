@@ -13,6 +13,7 @@ import {
 } from "./services/transcription";
 import { translate } from "./services/translation";
 import { planUtterance, detectLang, transcriptionLangHint } from "./config/modes";
+import { toSimplified } from "./config/simplify";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Mode } from "./types";
 
@@ -77,7 +78,7 @@ async function handleFinal(text: string) {
   if (plan.translateTo === null) return; // passthrough: show the original only
   try {
     const out = await translate(text, { source: plan.sourceLang, target: plan.translateTo });
-    store.setTranslation(id, out);
+    store.setTranslation(id, toSimplified(out)); // belt-and-suspenders: ensure Simplified
   } catch (e) {
     store.setTranslation(id, `⚠️ 翻译失败: ${e}`);
   }
@@ -242,13 +243,14 @@ async function main() {
   });
 
   await onTranscript((m) => {
+    const text = toSimplified(m.text); // normalize any Traditional → Simplified
     if (m.kind === "partial") {
-      liveSegment += m.text; // accumulate the current acoustic segment
+      liveSegment += text; // accumulate the current acoustic segment
       assembler.touch(); // speech in progress — keep the idle flush from firing
       refreshLive();
-    } else if (m.kind === "final" && m.text.trim()) {
+    } else if (m.kind === "final" && text.trim()) {
       liveSegment = ""; // segment done; its text is authoritative via the assembler
-      assembler.feed(m.text); // splits into sentences / merges fragments → handleFinal
+      assembler.feed(text); // splits into sentences / merges fragments → handleFinal
       refreshLive(); // show the in-progress remainder (or clear)
     }
   });
