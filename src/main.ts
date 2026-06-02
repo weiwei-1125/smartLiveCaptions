@@ -20,8 +20,20 @@ const root = document.getElementById("app")!;
 // In-memory only (cleared on exit). Large enough to scroll back through a session.
 const store = new CaptionStore({ maxHistory: 200 });
 
+// Sensitivity presets. silenceMs = server VAD acoustic-commit boundary (smaller =
+// text appears sooner); idleMs = how long the assembler holds a punctuation-less
+// fragment before committing it (larger = a thinking pause won't split a sentence).
+type Level = "fast" | "balanced" | "full";
+const LEVELS: Record<Level, { label: string; silenceMs: number; idleMs: number }> = {
+  fast: { label: "⚡ 快", silenceMs: 250, idleMs: 1200 },
+  balanced: { label: "⚖️ 平衡", silenceMs: 350, idleMs: 1600 },
+  full: { label: "📝 整句", silenceMs: 500, idleMs: 2400 },
+};
+const LEVEL_ORDER: Level[] = ["fast", "balanced", "full"];
+
 let mode: Mode = "practice";
 let micOn = true;
+let level: Level = "balanced";
 let conn = "启动中…";
 let framesSent = 0; // diagnostic: mic frames forwarded (climbs while you speak)
 
@@ -29,7 +41,7 @@ function statusText(): string {
   return `${conn} · 🎤 ${framesSent}`;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, micOn });
+  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level: LEVELS[level].label });
 }
 store.subscribe(render);
 
@@ -78,7 +90,7 @@ async function handleFinal(text: string) {
 // in-progress SENTENCE = assembler buffer (held across pauses) + liveSegment.
 let liveSegment = "";
 const assembler = new SentenceAssembler({
-  idleMs: 700,
+  idleMs: LEVELS.balanced.idleMs,
   maxChars: 160,
   onSentence: (s) => {
     void handleFinal(s);
@@ -94,29 +106,50 @@ function refreshLive() {
   store.setPartial(live, detectLang(live));
 }
 
-// Switch practice <-> interview: restart the transcription session with the new
-// language hint. The mic keeps running; only the transcription stream is reset.
-// `switching` guards against a fast double-toggle racing two stop/start cycles.
+// Restart the transcription session (new language hint and/or silence setting). The
+// mic keeps running; only the transcription stream is reset. Clears any half-assembled
+// sentence so it can't leak across the restart.
 let switching = false;
-async function toggleMode() {
-  if (switching) return;
-  switching = true;
-  mode = mode === "practice" ? "interview" : "practice";
-  assembler.reset(); // drop any half-assembled sentence from the old session
+async function restartTranscription() {
+  assembler.reset();
   liveSegment = "";
-  store.current = null; // drop any in-flight partial from the old session
+  store.current = null;
   conn = "切换中…";
   render();
   try {
     await stopTranscription();
-    await startTranscription(transcriptionLangHint(mode));
+    await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
     conn = "已连接，正在听…";
   } catch (e) {
     conn = `切换失败: ${e}`;
+  }
+  render();
+}
+
+// Switch practice <-> interview. `switching` guards a fast double-toggle.
+async function toggleMode() {
+  if (switching) return;
+  switching = true;
+  mode = mode === "practice" ? "interview" : "practice";
+  try {
+    await restartTranscription();
   } finally {
     switching = false;
   }
-  render();
+}
+
+// Cycle the sensitivity preset (fast → balanced → full). Updates the assembler's idle
+// timeout immediately and restarts the session with the new silence setting.
+async function cycleLevel() {
+  if (switching) return;
+  switching = true;
+  level = LEVEL_ORDER[(LEVEL_ORDER.indexOf(level) + 1) % LEVEL_ORDER.length];
+  assembler.setIdleMs(LEVELS[level].idleMs);
+  try {
+    await restartTranscription();
+  } finally {
+    switching = false;
+  }
 }
 
 // One delegated mousedown handler on the stable root. We use mousedown (not click)
@@ -140,6 +173,10 @@ root.addEventListener("mousedown", (e) => {
   }
   if (target.closest("[data-action='toggle-mode']")) {
     void toggleMode();
+    return;
+  }
+  if (target.closest("[data-action='cycle-level']")) {
+    void cycleLevel();
     return;
   }
   if (target.closest("[data-drag]")) {
@@ -170,7 +207,7 @@ async function main() {
     }
   });
 
-  await startTranscription(transcriptionLangHint(mode));
+  await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
   conn = "已连接，正在听…";
   render();
 

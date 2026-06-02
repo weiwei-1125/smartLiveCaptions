@@ -27,7 +27,7 @@ pub fn parse_event(msg: &Value) -> TranscriptEvent {
 /// Build the GA `session.update` payload that configures a transcription session:
 /// 24kHz mono PCM input (GA requires >=24kHz), the transcription model + language,
 /// and server-side VAD so the server auto-segments utterances (delta + completed).
-pub fn session_update(model: &str, language: &str) -> Value {
+pub fn session_update(model: &str, language: &str, silence_ms: u32) -> Value {
     serde_json::json!({
         "type": "session.update",
         "session": {
@@ -36,14 +36,14 @@ pub fn session_update(model: &str, language: &str) -> Value {
                 "input": {
                     "format": { "type": "audio/pcm", "rate": 24000 },
                     "transcription": { "model": model, "language": language },
-                    // silence_duration_ms 500: a moderate acoustic boundary. The client-side
-                    // SentenceAssembler does the real sentence splitting/merging, so we don't
-                    // need a long silence here (shorter = lower latency).
+                    // silence_ms is the acoustic-commit boundary (set by the frontend
+                    // sensitivity control). The client-side SentenceAssembler does the
+                    // real sentence splitting/merging, so this can be fairly short.
                     "turn_detection": {
                         "type": "server_vad",
                         "threshold": 0.5,
                         "prefix_padding_ms": 300,
-                        "silence_duration_ms": 500
+                        "silence_duration_ms": silence_ms
                     }
                 }
             }
@@ -81,12 +81,12 @@ mod tests {
 
     #[test]
     fn session_update_sets_language_and_model() {
-        let s = session_update("gpt-4o-transcribe", "zh");
+        let s = session_update("gpt-4o-transcribe", "zh", 350);
         assert_eq!(s["type"], "session.update");
         assert_eq!(s["session"]["type"], "transcription");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["language"], "zh");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["model"], "gpt-4o-transcribe");
-        assert_eq!(s["session"]["audio"]["input"]["turn_detection"]["silence_duration_ms"], 500);
+        assert_eq!(s["session"]["audio"]["input"]["turn_detection"]["silence_duration_ms"], 350);
     }
 }
 
@@ -100,6 +100,7 @@ pub async fn connect(
     api_key: String,
     model: String,
     language: String,
+    silence_ms: u32,
     mut audio_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     on_event: impl Fn(TranscriptEvent) + Send + 'static,
 ) -> Result<(), String> {
@@ -117,7 +118,7 @@ pub async fn connect(
     let (mut write, mut read) = ws.split();
 
     write
-        .send(Message::Text(session_update(&model, &language).to_string()))
+        .send(Message::Text(session_update(&model, &language, silence_ms).to_string()))
         .await
         .map_err(|e| format!("session update failed: {e}"))?;
 

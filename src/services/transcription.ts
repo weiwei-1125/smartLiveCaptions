@@ -6,8 +6,8 @@ export interface TranscriptMsg {
   text: string;
 }
 
-export async function startTranscription(language: "zh" | "en"): Promise<void> {
-  await invoke("start_transcription", { language });
+export async function startTranscription(language: "zh" | "en", silenceMs: number): Promise<void> {
+  await invoke("start_transcription", { language, silenceMs });
 }
 
 export async function stopTranscription(): Promise<void> {

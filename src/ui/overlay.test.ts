@@ -10,7 +10,7 @@ beforeEach(() => {
 });
 
 function chrome(mode: Mode = "practice", micOn = true): OverlayChrome {
-  return { statusText: "已连接", mode, micOn };
+  return { statusText: "已连接", mode, micOn, level: "⚖️ 平衡" };
 }
 
 describe("renderOverlay", () => {
@@ -18,6 +18,7 @@ describe("renderOverlay", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice"));
     expect(root.querySelector("[data-drag]")).not.toBeNull();
     expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
+    expect(root.querySelector("[data-action='cycle-level']")).not.toBeNull();
     expect(root.querySelector("[data-action='clear']")).not.toBeNull();
     expect(root.querySelector("[data-action='close']")).not.toBeNull();
     const btn = root.querySelector("[data-action='toggle-mode']");

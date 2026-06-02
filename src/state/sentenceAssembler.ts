@@ -98,6 +98,11 @@ export class SentenceAssembler {
     this.buffer = "";
   }
 
+  /** Adjust the silence-hang timeout (sensitivity control). */
+  setIdleMs(ms: number): void {
+    this.opts.idleMs = ms;
+  }
+
   private arm(): void {
     this.clearTimer();
     if (this.buffer) this.timer = setTimeout(() => this.flush(), this.opts.idleMs);
