@@ -14,10 +14,10 @@
     "windows": [
       {
         "title": "smartLiveCaptions",
-        "width": 760,
-        "height": 420,
-        "minWidth": 360,
-        "minHeight": 160,
+        "width": 960,
+        "height": 460,
+        "minWidth": 720,
+        "minHeight": 200,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
