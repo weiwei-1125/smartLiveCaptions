@@ -35,6 +35,7 @@ const LEVELS: Record<Level, { silenceMs: number; idleMs: number }> = {
 let mode: Mode = "zh2en";
 let micOn = true;
 let level: Level = "balanced";
+let onTop = true; // window starts always-on-top (matches tauri.conf alwaysOnTop); pin toggles it
 let conn = "启动中…";
 let framesSent = 0; // diagnostic: mic frames forwarded (climbs while you speak)
 
@@ -42,7 +43,7 @@ function statusText(): string {
   return `${conn} · 🎤 ${framesSent}`;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level });
+  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level, onTop });
 }
 store.subscribe(render);
 
@@ -209,6 +210,20 @@ root.addEventListener("mousedown", (e) => {
   if (target.closest("[data-action='clear']")) {
     store.clear();
     render();
+    return;
+  }
+  if (target.closest("[data-action='toggle-pin']")) {
+    onTop = !onTop; // toggle always-on-top so the overlay can be sent behind other windows
+    void getCurrentWindow().setAlwaysOnTop(onTop);
+    render();
+    return;
+  }
+  if (target.closest("[data-action='minimize']")) {
+    void getCurrentWindow().minimize();
+    return;
+  }
+  if (target.closest("[data-action='toggle-maximize']")) {
+    void getCurrentWindow().toggleMaximize();
     return;
   }
   if (target.closest("[data-action='close']")) {

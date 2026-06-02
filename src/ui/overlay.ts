@@ -44,7 +44,16 @@ export interface OverlayChrome {
   mode: Mode;
   micOn: boolean;
   level: string; // active sensitivity key: "fast" | "balanced" | "full"
+  onTop: boolean; // window is always-on-top (pinned)
 }
+
+// Monochrome window-control glyphs (inherit currentColor, same language as the copy/eye icons).
+const ICON_PIN =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="15" x2="12" y2="22"/><path d="M9 3h6l-1 7 2 2v3H8v-3l2-2-1-7z"/></svg>';
+const ICON_MIN =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="12" x2="18" y2="12"/></svg>';
+const ICON_MAX =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>';
 
 // Distance (px) from the bottom within which we consider the user "pinned" to the
 // newest caption, so new text keeps auto-scrolling to the bottom.
@@ -72,10 +81,15 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   const copyAllBtn = `<button class="ctl" data-action="copy-all" title="复制全部对话（中英）">📋</button>`;
   const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
   const settingsBtn = `<button class="ctl" data-action="open-settings" title="设置 API Key">⚙️</button>`;
-  const closeBtn = `<button class="ctl close" data-action="close" title="退出">✕</button>`;
+  // Window controls (Windows-like), grouped at the far right. Pin toggles always-on-top.
+  const pinBtn = `<button class="ctl winop pin${chrome.onTop ? " active" : ""}" data-action="toggle-pin" title="${chrome.onTop ? "已置顶（点击取消）" : "未置顶（点击置顶）"}">${ICON_PIN}</button>`;
+  const minBtn = `<button class="ctl winop" data-action="minimize" title="最小化">${ICON_MIN}</button>`;
+  const maxBtn = `<button class="ctl winop" data-action="toggle-maximize" title="最大化 / 还原">${ICON_MAX}</button>`;
+  const closeBtn = `<button class="ctl winop close" data-action="close" title="退出">✕</button>`;
+  const winctl = `<span class="winctl">${pinBtn}${minBtn}${maxBtn}${closeBtn}</span>`;
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    ${seg}${micBtn}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${closeBtn}
+    ${seg}${micBtn}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

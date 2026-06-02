@@ -9,8 +9,8 @@ beforeEach(() => {
   root = document.createElement("div");
 });
 
-function chrome(mode: Mode = "zh2en", micOn = true, level = "balanced"): OverlayChrome {
-  return { statusText: "已连接", mode, micOn, level };
+function chrome(mode: Mode = "zh2en", micOn = true, level = "balanced", onTop = true): OverlayChrome {
+  return { statusText: "已连接", mode, micOn, level, onTop };
 }
 
 describe("renderOverlay", () => {
@@ -30,6 +30,21 @@ describe("renderOverlay", () => {
   it("renders a settings (gear) button", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
     expect(root.querySelector("[data-action='open-settings']")).not.toBeNull();
+  });
+
+  it("renders window controls: pin, minimize, maximize, close", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
+    expect(root.querySelector("[data-action='toggle-pin']")).not.toBeNull();
+    expect(root.querySelector("[data-action='minimize']")).not.toBeNull();
+    expect(root.querySelector("[data-action='toggle-maximize']")).not.toBeNull();
+    expect(root.querySelector("[data-action='close']")).not.toBeNull();
+  });
+
+  it("reflects always-on-top state on the pin button", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true));
+    expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(true);
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", false));
+    expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(false);
   });
 
   it("shows the en→zh direction when mode is en2zh", () => {
