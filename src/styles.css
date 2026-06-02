@@ -35,10 +35,26 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .captions::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .3); }
 
 .blk:not(.live) { opacity: .55; }
-.orig { font-size: 19px; font-weight: 600; line-height: 1.4; }
+.blk:hover { opacity: 1; } /* brighten the line you're hovering (e.g. to copy it) */
+.orig { position: relative; font-size: 19px; font-weight: 600; line-height: 1.4; }
 .orig.zh { color: #9fd0ff; } .orig.en { color: #a9e8c0; }
-.trans { margin-top: 5px; padding: 7px 10px; font-size: 18px; color: #eef1f6; line-height: 1.45;
-  background: rgba(255, 255, 255, .07); border-left: 3px solid #5b8def; border-radius: 6px; }
+.trans { position: relative; margin-top: 5px; padding: 7px 10px; font-size: 18px; color: #eef1f6;
+  line-height: 1.45; background: rgba(255, 255, 255, .07); border-left: 3px solid #5b8def; border-radius: 6px; }
 .cursor { display: inline-block; width: 2px; height: 16px; background: #9fd0ff;
   margin-left: 3px; vertical-align: -2px; animation: blink .8s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
+
+/* Per-line copy buttons: hidden until you hover the caption line. */
+.copy { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); opacity: 0;
+  cursor: pointer; background: rgba(40, 42, 48, .92); border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 6px; color: #cdd5e2; font-size: 12px; line-height: 1; padding: 3px 6px;
+  font-family: inherit; transition: opacity .12s; }
+.blk:hover .copy { opacity: .85; }
+.copy:hover { opacity: 1; background: rgba(91, 141, 239, .45); }
+
+/* Transient "copied" toast (appended to <body>, survives overlay re-renders). */
+.toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  background: rgba(20, 22, 28, .96); color: #eef1f6; border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 16px; padding: 6px 14px; font-size: 13px; z-index: 9999; opacity: 0;
+  transition: opacity .15s; pointer-events: none; }
+.toast.show { opacity: 1; }

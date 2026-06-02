@@ -24,10 +24,10 @@ const store = new CaptionStore({ maxHistory: 200 });
 // text appears sooner); idleMs = how long the assembler holds a punctuation-less
 // fragment before committing it (larger = a thinking pause won't split a sentence).
 type Level = "fast" | "balanced" | "full";
-const LEVELS: Record<Level, { label: string; silenceMs: number; idleMs: number }> = {
-  fast: { label: "⚡ 快", silenceMs: 250, idleMs: 1200 },
-  balanced: { label: "⚖️ 平衡", silenceMs: 350, idleMs: 1600 },
-  full: { label: "📝 整句", silenceMs: 500, idleMs: 2400 },
+const LEVELS: Record<Level, { icon: string; name: string; silenceMs: number; idleMs: number }> = {
+  fast: { icon: "⚡", name: "快", silenceMs: 250, idleMs: 1200 },
+  balanced: { icon: "⚖️", name: "平衡", silenceMs: 350, idleMs: 1600 },
+  full: { icon: "📝", name: "整句", silenceMs: 500, idleMs: 2400 },
 };
 const LEVEL_ORDER: Level[] = ["fast", "balanced", "full"];
 
@@ -41,7 +41,13 @@ function statusText(): string {
   return `${conn} · 🎤 ${framesSent}`;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level: LEVELS[level].label });
+  renderOverlay(root, store, {
+    statusText: statusText(),
+    mode,
+    micOn,
+    level: LEVELS[level].icon,
+    levelName: LEVELS[level].name,
+  });
 }
 store.subscribe(render);
 
@@ -152,12 +158,59 @@ async function cycleLevel() {
   }
 }
 
+// --- Copy to clipboard (per-line + copy-all) with a transient toast ---
+let toastEl: HTMLDivElement | null = null;
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+function showToast(msg: string) {
+  if (!toastEl) {
+    toastEl = document.createElement("div");
+    toastEl.className = "toast";
+    document.body.appendChild(toastEl); // outside #app so re-renders don't drop it
+  }
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl?.classList.remove("show"), 1100);
+}
+async function writeClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("✓ 已复制");
+  } catch {
+    showToast("复制失败");
+  }
+}
+function copyLine(id: number, field: "orig" | "trans") {
+  const u = store.history.find((x) => x.id === id);
+  if (!u) return;
+  const text = field === "orig" ? u.source : u.translation;
+  if (text) void writeClipboard(text);
+}
+function copyAll() {
+  // oldest first; each sentence as original + translation, blank line between.
+  const text = [...store.history]
+    .reverse()
+    .map((u) => (u.translation ? `${u.source}\n${u.translation}` : u.source))
+    .join("\n\n");
+  if (text) void writeClipboard(text);
+  else showToast("没有可复制的字幕");
+}
+
 // One delegated mousedown handler on the stable root. We use mousedown (not click)
 // for BOTH actions because the overlay rebuilds innerHTML every ~340ms while you
 // speak — a click (mousedown+mouseup on the SAME node) would be lost when the node
 // is replaced mid-gesture.
 root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
+  const copyEl = target.closest("[data-action='copy']") as HTMLElement | null;
+  if (copyEl) {
+    copyLine(Number(copyEl.dataset.id), copyEl.dataset.field === "trans" ? "trans" : "orig");
+    return;
+  }
+  if (target.closest("[data-action='copy-all']")) {
+    copyAll();
+    return;
+  }
   if (target.closest("[data-action='clear']")) {
     store.clear();
     render();

@@ -1,29 +1,38 @@
 import type { CaptionStore } from "../state/captionStore";
 import type { Utterance, Mode } from "../types";
 
-function blockHtml(u: Utterance, live: boolean): string {
-  const origClass = u.sourceLang === "zh" ? "orig zh" : "orig en";
-  const cursor = live ? '<span class="cursor"></span>' : "";
-  const trans = u.translation ? `<div class="trans">${escapeHtml(u.translation)}</div>` : "";
-  return `<div class="blk${live ? " live" : ""}">
-    <div class="${origClass}">${escapeHtml(u.source)}${cursor}</div>
-    ${trans}
-  </div>`;
-}
-
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 }
 
+function copyBtn(id: number, field: "orig" | "trans", label: string): string {
+  return `<button class="copy" data-action="copy" data-id="${id}" data-field="${field}" title="${label}">📋</button>`;
+}
+
+function blockHtml(u: Utterance, live: boolean): string {
+  const origClass = u.sourceLang === "zh" ? "orig zh" : "orig en";
+  const cursor = live ? '<span class="cursor"></span>' : "";
+  // Per-line copy buttons reveal on hover (committed lines only, not the live one).
+  const origCopy = live ? "" : copyBtn(u.id, "orig", "复制原文");
+  const origLine = `<div class="${origClass}"><span class="txt">${escapeHtml(u.source)}${cursor}</span>${origCopy}</div>`;
+  let transLine = "";
+  if (u.translation) {
+    const transCopy = live ? "" : copyBtn(u.id, "trans", "复制译文");
+    transLine = `<div class="trans"><span class="txt">${escapeHtml(u.translation)}</span>${transCopy}</div>`;
+  }
+  return `<div class="blk${live ? " live" : ""}">${origLine}${transLine}</div>`;
+}
+
 function modeLabel(mode: Mode): string {
-  return mode === "practice" ? "🗣️ 练口语 中→英" : "🎧 面试 英→中";
+  return mode === "practice" ? "🗣️ 中→英" : "🎧 英→中";
 }
 
 export interface OverlayChrome {
   statusText: string;
   mode: Mode;
   micOn: boolean;
-  level: string; // current sensitivity preset label, e.g. "⚖️ 平衡"
+  level: string; // current sensitivity icon, e.g. "⚖️"
+  levelName: string; // current sensitivity name for the tooltip, e.g. "平衡"
 }
 
 // Distance (px) from the bottom within which we consider the user "pinned" to the
@@ -42,16 +51,17 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   for (const u of [...store.history].reverse()) blocks.push(blockHtml(u, false));
   if (store.current) blocks.push(blockHtml(store.current, true));
 
-  // Top bar: ⠿ drag handle (data-drag → startDragging in main.ts) + mic / mode / close.
-  // The buttons are siblings of the drag handle so they stay clickable.
-  const micBtn = `<button class="ctl mic ${chrome.micOn ? "on" : "off"}" data-action="toggle-mic" title="收音开关">${chrome.micOn ? "🎤 收音" : "🔇 已停"}</button>`;
-  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换模式">${modeLabel(chrome.mode)}</button>`;
-  const levelBtn = `<button class="ctl level" data-action="cycle-level" title="灵敏度：快 / 平衡 / 整句">${escapeHtml(chrome.level)}</button>`;
+  // Icon-forward top bar. The ⠿ handle (data-drag) is the only drag region; the
+  // buttons are siblings so they stay clickable.
+  const micBtn = `<button class="ctl mic ${chrome.micOn ? "on" : "off"}" data-action="toggle-mic" title="${chrome.micOn ? "收音中（点击暂停）" : "已停（点击恢复）"}">${chrome.micOn ? "🎤" : "🔇"}</button>`;
+  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换模式（练口语 / 面试）">${modeLabel(chrome.mode)}</button>`;
+  const levelBtn = `<button class="ctl level" data-action="cycle-level" title="灵敏度：${escapeHtml(chrome.levelName)}（点击切换 快 / 平衡 / 整句）">${escapeHtml(chrome.level)}</button>`;
+  const copyAllBtn = `<button class="ctl" data-action="copy-all" title="复制全部对话（中英）">📋</button>`;
   const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
   const closeBtn = `<button class="ctl close" data-action="close" title="退出">✕</button>`;
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    ${micBtn}${modeBtn}${levelBtn}${clearBtn}${closeBtn}
+    ${micBtn}${modeBtn}${levelBtn}${copyAllBtn}${clearBtn}${closeBtn}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

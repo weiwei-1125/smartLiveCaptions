@@ -10,7 +10,7 @@ beforeEach(() => {
 });
 
 function chrome(mode: Mode = "practice", micOn = true): OverlayChrome {
-  return { statusText: "已连接", mode, micOn, level: "⚖️ 平衡" };
+  return { statusText: "已连接", mode, micOn, level: "⚖️", levelName: "平衡" };
 }
 
 describe("renderOverlay", () => {
@@ -19,16 +19,17 @@ describe("renderOverlay", () => {
     expect(root.querySelector("[data-drag]")).not.toBeNull();
     expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
     expect(root.querySelector("[data-action='cycle-level']")).not.toBeNull();
+    expect(root.querySelector("[data-action='copy-all']")).not.toBeNull();
     expect(root.querySelector("[data-action='clear']")).not.toBeNull();
     expect(root.querySelector("[data-action='close']")).not.toBeNull();
     const btn = root.querySelector("[data-action='toggle-mode']");
     expect(btn).not.toBeNull();
-    expect(btn!.textContent).toContain("练口语");
+    expect(btn!.textContent).toContain("中→英");
   });
 
-  it("shows the interview label when mode is interview", () => {
+  it("shows the interview direction when mode is interview", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("interview"));
-    expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("面试");
+    expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("英→中");
   });
 
   it("reflects the mic on/off state on the mic button", () => {
@@ -58,6 +59,21 @@ describe("renderOverlay", () => {
     renderOverlay(root, store, chrome());
     expect(root.querySelector(".orig.zh")).not.toBeNull();
     expect(root.querySelector(".orig.en")).not.toBeNull();
+  });
+
+  it("adds per-line copy buttons to committed lines but not the live line", () => {
+    const store = new CaptionStore({ maxHistory: 5 });
+    const id = store.commit("你好", "zh");
+    store.setTranslation(id, "Hello");
+    store.setPartial("正在说", "zh"); // live line
+    renderOverlay(root, store, chrome());
+    // committed block has an original-copy and a translation-copy button
+    const committed = root.querySelector(".blk:not(.live)")!;
+    expect(committed.querySelector("[data-action='copy'][data-field='orig']")).not.toBeNull();
+    expect(committed.querySelector("[data-action='copy'][data-field='trans']")).not.toBeNull();
+    // the live line has no copy buttons
+    const live = root.querySelector(".blk.live")!;
+    expect(live.querySelector("[data-action='copy']")).toBeNull();
   });
 
   it("renders a translation line only when a translation is present", () => {
