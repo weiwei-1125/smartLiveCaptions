@@ -22,6 +22,14 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .ctl.close { color: #ff8a8a; padding: 3px 9px; }
 .ctl.close:hover { background: rgba(255, 90, 90, .25); border-color: rgba(255, 90, 90, .5); }
 
+/* Sensitivity segmented control: three options, current one highlighted. */
+.seg { flex: none; display: inline-flex; gap: 2px; padding: 2px; border-radius: 16px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14); }
+.seg-item { font-size: 11px; color: #9aa0a8; background: transparent; border: none;
+  border-radius: 14px; padding: 3px 9px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.seg-item:hover { color: #cdd5e2; }
+.seg-item.active { color: #fff; background: rgba(91, 141, 239, .55); }
+
 /* Captions fill the rest. Scrollable so the user can scroll up to read history; new
    text auto-pins to the bottom unless they've scrolled up (see overlay.ts). We use
    `margin-top:auto` on the first block (NOT justify-content:flex-end, which clips the

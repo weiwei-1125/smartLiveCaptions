@@ -24,14 +24,12 @@ const store = new CaptionStore({ maxHistory: 200 });
 // text appears sooner); idleMs = how long the assembler holds a punctuation-less
 // fragment before committing it (larger = a thinking pause won't split a sentence).
 type Level = "fast" | "balanced" | "full";
-const LEVELS: Record<Level, { icon: string; name: string; silenceMs: number; idleMs: number }> = {
-  fast: { icon: "⚡", name: "快", silenceMs: 250, idleMs: 1200 },
-  balanced: { icon: "⚖️", name: "平衡", silenceMs: 350, idleMs: 1600 },
-  full: { icon: "📝", name: "整句", silenceMs: 500, idleMs: 2400 },
+const LEVELS: Record<Level, { silenceMs: number; idleMs: number }> = {
+  fast: { silenceMs: 250, idleMs: 1200 },
+  balanced: { silenceMs: 350, idleMs: 1600 },
+  full: { silenceMs: 500, idleMs: 2400 },
 };
-const LEVEL_ORDER: Level[] = ["fast", "balanced", "full"];
-
-let mode: Mode = "practice";
+let mode: Mode = "zh2en";
 let micOn = true;
 let level: Level = "balanced";
 let conn = "启动中…";
@@ -41,13 +39,7 @@ function statusText(): string {
   return `${conn} · 🎤 ${framesSent}`;
 }
 function render() {
-  renderOverlay(root, store, {
-    statusText: statusText(),
-    mode,
-    micOn,
-    level: LEVELS[level].icon,
-    levelName: LEVELS[level].name,
-  });
+  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level });
 }
 store.subscribe(render);
 
@@ -132,11 +124,11 @@ async function restartTranscription() {
   render();
 }
 
-// Switch practice <-> interview. `switching` guards a fast double-toggle.
+// Swap translation direction (中→英 <-> 英→中). `switching` guards a fast double-toggle.
 async function toggleMode() {
   if (switching) return;
   switching = true;
-  mode = mode === "practice" ? "interview" : "practice";
+  mode = mode === "zh2en" ? "en2zh" : "zh2en";
   try {
     await restartTranscription();
   } finally {
@@ -144,12 +136,12 @@ async function toggleMode() {
   }
 }
 
-// Cycle the sensitivity preset (fast → balanced → full). Updates the assembler's idle
+// Pick a sensitivity preset directly (segmented control). Updates the assembler's idle
 // timeout immediately and restarts the session with the new silence setting.
-async function cycleLevel() {
-  if (switching) return;
+async function setLevel(next: Level) {
+  if (switching || next === level) return;
   switching = true;
-  level = LEVEL_ORDER[(LEVEL_ORDER.indexOf(level) + 1) % LEVEL_ORDER.length];
+  level = next;
   assembler.setIdleMs(LEVELS[level].idleMs);
   try {
     await restartTranscription();
@@ -228,8 +220,9 @@ root.addEventListener("mousedown", (e) => {
     void toggleMode();
     return;
   }
-  if (target.closest("[data-action='cycle-level']")) {
-    void cycleLevel();
+  const segEl = target.closest("[data-action='set-level']") as HTMLElement | null;
+  if (segEl) {
+    void setLevel(segEl.dataset.level as Level);
     return;
   }
   if (target.closest("[data-drag]")) {

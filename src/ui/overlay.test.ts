@@ -9,16 +9,16 @@ beforeEach(() => {
   root = document.createElement("div");
 });
 
-function chrome(mode: Mode = "practice", micOn = true): OverlayChrome {
-  return { statusText: "已连接", mode, micOn, level: "⚖️", levelName: "平衡" };
+function chrome(mode: Mode = "zh2en", micOn = true, level = "balanced"): OverlayChrome {
+  return { statusText: "已连接", mode, micOn, level };
 }
 
 describe("renderOverlay", () => {
-  it("renders a drag handle, mic toggle, mode button, and close button", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice"));
+  it("renders drag handle, mic, mode, sensitivity segments, copy-all, clear, close", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en"));
     expect(root.querySelector("[data-drag]")).not.toBeNull();
     expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
-    expect(root.querySelector("[data-action='cycle-level']")).not.toBeNull();
+    expect(root.querySelectorAll("[data-action='set-level']").length).toBe(3); // 快/平衡/整句
     expect(root.querySelector("[data-action='copy-all']")).not.toBeNull();
     expect(root.querySelector("[data-action='clear']")).not.toBeNull();
     expect(root.querySelector("[data-action='close']")).not.toBeNull();
@@ -27,15 +27,22 @@ describe("renderOverlay", () => {
     expect(btn!.textContent).toContain("中→英");
   });
 
-  it("shows the interview direction when mode is interview", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("interview"));
+  it("shows the en→zh direction when mode is en2zh", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("en2zh"));
     expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("英→中");
   });
 
+  it("highlights the active sensitivity segment", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "full"));
+    const active = root.querySelector(".seg-item.active")!;
+    expect(active.getAttribute("data-level")).toBe("full");
+    expect(active.textContent).toBe("整句");
+  });
+
   it("reflects the mic on/off state on the mic button", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice", true));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true));
     expect(root.querySelector(".ctl.mic")!.classList.contains("on")).toBe(true);
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("practice", false));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", false));
     expect(root.querySelector(".ctl.mic")!.classList.contains("off")).toBe(true);
   });
 

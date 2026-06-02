@@ -1,4 +1,6 @@
-export type Mode = "practice" | "interview";
+// Translation direction. zh2en: speak Chinese → English (English passthrough);
+// en2zh: speak English → Chinese (Chinese passthrough).
+export type Mode = "zh2en" | "en2zh";
 
 export interface LangPair {
   source: "zh" | "en";

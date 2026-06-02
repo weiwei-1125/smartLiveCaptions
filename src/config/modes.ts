@@ -6,9 +6,9 @@ export function detectLang(text: string): "zh" | "en" {
   return /\p{Script=Han}/u.test(text) ? "zh" : "en";
 }
 
-/** The language hint sent to the transcription session for each mode. */
+/** The language hint sent to the transcription session for each direction. */
 export function transcriptionLangHint(mode: Mode): "zh" | "en" {
-  return mode === "practice" ? "zh" : "en";
+  return mode === "zh2en" ? "zh" : "en";
 }
 
 export interface UtterancePlan {
@@ -19,13 +19,13 @@ export interface UtterancePlan {
 }
 
 /**
- * Decide what to do with a finished utterance, per mode:
- * - practice: Chinese → translate to English; English → just show (no translation).
- * - interview: English → translate to Chinese; Chinese → just show.
+ * Decide what to do with a finished utterance, per direction:
+ * - zh2en: Chinese → translate to English; English → just show (no translation).
+ * - en2zh: English → translate to Chinese; Chinese → just show.
  */
 export function planUtterance(mode: Mode, text: string): UtterancePlan {
   const sourceLang = detectLang(text);
-  if (mode === "practice") {
+  if (mode === "zh2en") {
     return { sourceLang, translateTo: sourceLang === "zh" ? "en" : null };
   }
   return { sourceLang, translateTo: sourceLang === "en" ? "zh" : null };

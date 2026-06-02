@@ -1,6 +1,6 @@
 import type { LangPair } from "../types";
 
-const LANG_NAME: Record<"zh" | "en", string> = { zh: "Chinese", en: "English" };
+const LANG_NAME: Record<"zh" | "en", string> = { zh: "Simplified Chinese", en: "English" };
 
 export function buildTranslationPrompt(text: string, pair: LangPair): string {
   const tgt = LANG_NAME[pair.target];

@@ -1,5 +1,5 @@
 // Dev-only preview of the caption overlay with mock data (no Tauri IPC).
-// Load at http://localhost:1420/overlay-preview.html and call window.setMode("practice"|"interview").
+// Load at http://localhost:1420/overlay-preview.html and call window.setMode("zh2en"|"en2zh").
 import "../styles.css";
 import { CaptionStore } from "../state/captionStore";
 import { renderOverlay } from "../ui/overlay";
@@ -15,7 +15,7 @@ document.body.style.minHeight = "100vh";
 
 function sampleStore(mode: Mode): CaptionStore {
   const s = new CaptionStore({ maxHistory: 200 });
-  if (mode === "practice") {
+  if (mode === "zh2en") {
     const pairs: [string, string][] = [
       ["我最近在学英语", "I've been learning English lately."],
       ["每天都会练习口语", "I practice speaking every day."],
@@ -41,8 +41,8 @@ function sampleStore(mode: Mode): CaptionStore {
 
 function show(mode: Mode) {
   label.textContent = `Overlay preview · mode = ${mode}`;
-  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听… · 🎤 42", mode, micOn: true, level: "⚖️", levelName: "平衡" });
+  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听… · 🎤 42", mode, micOn: true, level: "balanced" });
 }
 
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;
-show("practice");
+show("zh2en");

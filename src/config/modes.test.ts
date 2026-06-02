@@ -13,33 +13,33 @@ describe("detectLang", () => {
 });
 
 describe("transcriptionLangHint", () => {
-  it("practice hints zh, interview hints en", () => {
-    expect(transcriptionLangHint("practice")).toBe("zh");
-    expect(transcriptionLangHint("interview")).toBe("en");
+  it("zh2en hints zh, en2zh hints en", () => {
+    expect(transcriptionLangHint("zh2en")).toBe("zh");
+    expect(transcriptionLangHint("en2zh")).toBe("en");
   });
 });
 
 describe("planUtterance", () => {
-  it("practice + Chinese → translate to English", () => {
-    expect(planUtterance("practice", "今天天气真不错")).toEqual({
+  it("zh2en + Chinese → translate to English", () => {
+    expect(planUtterance("zh2en", "今天天气真不错")).toEqual({
       sourceLang: "zh",
       translateTo: "en",
     });
   });
-  it("practice + English → passthrough (show only, no translation)", () => {
-    expect(planUtterance("practice", "Hello there.")).toEqual({
+  it("zh2en + English → passthrough (show only, no translation)", () => {
+    expect(planUtterance("zh2en", "Hello there.")).toEqual({
       sourceLang: "en",
       translateTo: null,
     });
   });
-  it("interview + English → translate to Chinese", () => {
-    expect(planUtterance("interview", "Can you walk me through it?")).toEqual({
+  it("en2zh + English → translate to Chinese", () => {
+    expect(planUtterance("en2zh", "Can you walk me through it?")).toEqual({
       sourceLang: "en",
       translateTo: "zh",
     });
   });
-  it("interview + Chinese → passthrough (show only)", () => {
-    expect(planUtterance("interview", "我先说一下")).toEqual({
+  it("en2zh + Chinese → passthrough (show only)", () => {
+    expect(planUtterance("en2zh", "我先说一下")).toEqual({
       sourceLang: "zh",
       translateTo: null,
     });
