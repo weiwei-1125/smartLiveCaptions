@@ -9,8 +9,14 @@ beforeEach(() => {
   root = document.createElement("div");
 });
 
-function chrome(mode: Mode = "zh2en", micOn = true, level = "balanced", onTop = true): OverlayChrome {
-  return { statusText: "已连接", mode, micOn, level, onTop };
+function chrome(
+  mode: Mode = "zh2en",
+  micOn = true,
+  level = "balanced",
+  onTop = true,
+  voiceActive = false,
+): OverlayChrome {
+  return { statusText: "已连接", mode, micOn, level, onTop, voiceActive };
 }
 
 describe("renderOverlay", () => {
@@ -57,6 +63,15 @@ describe("renderOverlay", () => {
     const active = root.querySelector(".seg-item.active")!;
     expect(active.getAttribute("data-level")).toBe("full");
     expect(active.textContent).toBe("整句");
+  });
+
+  it("renders a voice-activity dot that reflects voiceActive", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true, true));
+    expect(root.querySelector(".vad-dot.active")).not.toBeNull();
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true, false));
+    const dot = root.querySelector(".vad-dot");
+    expect(dot).not.toBeNull();
+    expect(dot!.classList.contains("active")).toBe(false);
   });
 
   it("reflects the mic on/off state on the mic button", () => {

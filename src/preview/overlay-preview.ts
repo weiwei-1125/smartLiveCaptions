@@ -42,7 +42,7 @@ function sampleStore(mode: Mode): CaptionStore {
 
 function show(mode: Mode) {
   label.textContent = `Overlay preview · mode = ${mode}`;
-  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听… · 🎤 42", mode, micOn: true, level: "balanced", onTop: true });
+  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听…", mode, micOn: true, level: "balanced", onTop: true, voiceActive: true });
 }
 
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;

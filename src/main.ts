@@ -36,14 +36,14 @@ let mode: Mode = "zh2en";
 let micOn = true;
 let level: Level = "balanced";
 let onTop = true; // window starts always-on-top (matches tauri.conf alwaysOnTop); pin toggles it
+let voiceActive = false; // mic is currently hearing your voice — drives the activity dot
 let conn = "启动中…";
-let framesSent = 0; // diagnostic: mic frames forwarded (climbs while you speak)
 
 function statusText(): string {
-  return `${conn} · 🎤 ${framesSent}`;
+  return conn;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level, onTop });
+  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level, onTop, voiceActive });
 }
 store.subscribe(render);
 
@@ -52,12 +52,13 @@ const capture = new AudioCapture();
 
 // Gate mic frames through the VAD and forward speech to the transcription stream.
 function onFrame(frame: Int16Array) {
-  if (vad.process(frame)) {
-    framesSent++;
-    void pushAudio(frame);
-    // The diagnostic counter is non-essential; refresh it rarely to avoid re-render
-    // churn that would fight scroll-back. Caption updates re-render on store changes.
-    if (framesSent % 30 === 0) render();
+  const speech = vad.process(frame);
+  if (speech) void pushAudio(frame);
+  // Drive the voice-activity dot directly (no full re-render) so it tracks your voice in
+  // real time; the overlay itself re-renders on caption changes.
+  if (speech !== voiceActive) {
+    voiceActive = speech;
+    root.querySelector(".vad-dot")?.classList.toggle("active", voiceActive);
   }
 }
 
@@ -66,7 +67,10 @@ async function toggleMic() {
   micOn = !micOn;
   try {
     if (micOn) await capture.start(onFrame);
-    else capture.stop();
+    else {
+      capture.stop();
+      voiceActive = false; // no audio coming in → dot idle
+    }
   } catch (e) {
     conn = `麦克风错误: ${e}`;
   }

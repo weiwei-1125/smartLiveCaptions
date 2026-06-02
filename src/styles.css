@@ -17,7 +17,19 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .14); border-radius: 16px; padding: 3px 10px;
   cursor: pointer; font-family: inherit; white-space: nowrap; }
 .ctl:hover { background: rgba(255, 255, 255, .16); }
+.ctl.mic { display: inline-flex; align-items: center; justify-content: center; }
 .ctl.mic.off { color: #ff8a8a; border-color: rgba(255, 138, 138, .4); background: rgba(255, 138, 138, .12); }
+
+/* Voice-activity dot: dim grey when silent; green + breathing glow while your voice is
+   being picked up. Updated in real time from the mic VAD (see main.ts onFrame). */
+.vad-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none;
+  margin-left: 7px; vertical-align: middle; background: #4a505c;
+  transition: background .18s ease, box-shadow .18s ease; }
+.vad-dot.active { background: #46d17f; animation: vad-pulse 1.4s ease-in-out infinite; }
+@keyframes vad-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(70, 209, 127, .26); }
+  50% { box-shadow: 0 0 0 5px rgba(70, 209, 127, .08); }
+}
 .ctl.mode { color: #cdd5e2; background: rgba(91, 141, 239, .18); border-color: rgba(91, 141, 239, .4); }
 .ctl.close { color: #ff8a8a; }
 .ctl.close:hover { background: rgba(255, 90, 90, .25); border-color: rgba(255, 90, 90, .5); }
