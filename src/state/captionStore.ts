@@ -49,4 +49,11 @@ export class CaptionStore {
       this.emit();
     }
   }
+
+  /** Remove all captions (history + the live current line). */
+  clear(): void {
+    this.history = [];
+    this.current = null;
+    this.emit();
+  }
 }

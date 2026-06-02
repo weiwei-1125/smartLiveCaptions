@@ -40,4 +40,16 @@ describe("CaptionStore", () => {
     s.setPartial("x", "zh");
     expect(cb).toHaveBeenCalled();
   });
+
+  it("clear() empties history and current and notifies", () => {
+    const s = new CaptionStore({ maxHistory: 3 });
+    s.commit("a");
+    s.setPartial("b", "zh");
+    const cb = vi.fn();
+    s.subscribe(cb);
+    s.clear();
+    expect(s.history).toEqual([]);
+    expect(s.current).toBeNull();
+    expect(cb).toHaveBeenCalled();
+  });
 });

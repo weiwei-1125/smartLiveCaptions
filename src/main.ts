@@ -101,6 +101,11 @@ async function toggleMode() {
 // is replaced mid-gesture.
 root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
+  if (target.closest("[data-action='clear']")) {
+    store.clear();
+    render();
+    return;
+  }
   if (target.closest("[data-action='close']")) {
     void getCurrentWindow().close();
     return;

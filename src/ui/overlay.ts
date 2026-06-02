@@ -45,10 +45,11 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   // The buttons are siblings of the drag handle so they stay clickable.
   const micBtn = `<button class="ctl mic ${chrome.micOn ? "on" : "off"}" data-action="toggle-mic" title="收音开关">${chrome.micOn ? "🎤 收音" : "🔇 已停"}</button>`;
   const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换模式">${modeLabel(chrome.mode)}</button>`;
+  const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
   const closeBtn = `<button class="ctl close" data-action="close" title="退出">✕</button>`;
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    ${micBtn}${modeBtn}${closeBtn}
+    ${micBtn}${modeBtn}${clearBtn}${closeBtn}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

@@ -36,7 +36,14 @@ pub fn session_update(model: &str, language: &str) -> Value {
                 "input": {
                     "format": { "type": "audio/pcm", "rate": 24000 },
                     "transcription": { "model": model, "language": language },
-                    "turn_detection": { "type": "server_vad" }
+                    // silence_duration_ms 700 (not the 200ms default) so a think/breathe
+                    // pause mid-sentence doesn't commit a fragment. See sentence-segmentation design.
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "threshold": 0.5,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 700
+                    }
                 }
             }
         }
@@ -78,6 +85,7 @@ mod tests {
         assert_eq!(s["session"]["type"], "transcription");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["language"], "zh");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["model"], "gpt-4o-transcribe");
+        assert_eq!(s["session"]["audio"]["input"]["turn_detection"]["silence_duration_ms"], 700);
     }
 }
 
