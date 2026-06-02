@@ -36,13 +36,14 @@ pub fn session_update(model: &str, language: &str) -> Value {
                 "input": {
                     "format": { "type": "audio/pcm", "rate": 24000 },
                     "transcription": { "model": model, "language": language },
-                    // silence_duration_ms 700 (not the 200ms default) so a think/breathe
-                    // pause mid-sentence doesn't commit a fragment. See sentence-segmentation design.
+                    // silence_duration_ms 500: a moderate acoustic boundary. The client-side
+                    // SentenceAssembler does the real sentence splitting/merging, so we don't
+                    // need a long silence here (shorter = lower latency).
                     "turn_detection": {
                         "type": "server_vad",
                         "threshold": 0.5,
                         "prefix_padding_ms": 300,
-                        "silence_duration_ms": 700
+                        "silence_duration_ms": 500
                     }
                 }
             }
@@ -85,7 +86,7 @@ mod tests {
         assert_eq!(s["session"]["type"], "transcription");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["language"], "zh");
         assert_eq!(s["session"]["audio"]["input"]["transcription"]["model"], "gpt-4o-transcribe");
-        assert_eq!(s["session"]["audio"]["input"]["turn_detection"]["silence_duration_ms"], 700);
+        assert_eq!(s["session"]["audio"]["input"]["turn_detection"]["silence_duration_ms"], 500);
     }
 }
 

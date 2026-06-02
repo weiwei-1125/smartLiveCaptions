@@ -52,4 +52,23 @@ describe("CaptionStore", () => {
     expect(s.current).toBeNull();
     expect(cb).toHaveBeenCalled();
   });
+
+  it("addFinal() pushes a sentence to history without touching the live current line", () => {
+    const s = new CaptionStore({ maxHistory: 3 });
+    s.setPartial("正在说", "zh");
+    const id = s.addFinal("一句完整的话。", "zh");
+    expect(s.history[0].source).toBe("一句完整的话。");
+    expect(s.history[0].done).toBe(true);
+    expect(s.current?.source).toBe("正在说"); // live line untouched
+    s.setTranslation(id, "A complete sentence.");
+    expect(s.history[0].translation).toBe("A complete sentence.");
+  });
+
+  it("setPartial('') clears the live line", () => {
+    const s = new CaptionStore({ maxHistory: 3 });
+    s.setPartial("x", "zh");
+    expect(s.current).not.toBeNull();
+    s.setPartial("", "zh");
+    expect(s.current).toBeNull();
+  });
 });

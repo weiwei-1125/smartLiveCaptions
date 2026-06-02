@@ -21,6 +21,14 @@ export class CaptionStore {
   }
 
   setPartial(text: string, lang: "zh" | "en"): void {
+    if (text === "") {
+      // empty live text → clear the live line
+      if (this.current) {
+        this.current = null;
+        this.emit();
+      }
+      return;
+    }
     if (!this.current) {
       this.current = { id: this.nextId++, source: text, translation: "", sourceLang: lang, done: false };
     } else {
@@ -28,6 +36,22 @@ export class CaptionStore {
       this.current.sourceLang = lang;
     }
     this.emit();
+  }
+
+  /** Append a finished sentence directly to history, independent of the live `current`
+   * line. Returns its id so the async translation can be attached via setTranslation. */
+  addFinal(text: string, lang: "zh" | "en"): number {
+    const u: Utterance = {
+      id: this.nextId++,
+      source: text,
+      translation: "",
+      sourceLang: lang,
+      done: true,
+    };
+    this.history.unshift(u);
+    if (this.history.length > this.opts.maxHistory) this.history.length = this.opts.maxHistory;
+    this.emit();
+    return u.id;
   }
 
   /** Finalizes the current utterance (or creates one from `finalText`) and moves it to history. Returns its id. */

@@ -2,6 +2,7 @@ import "./styles.css";
 import { AudioCapture } from "./audio/capture";
 import { EnergyVad } from "./audio/vad";
 import { CaptionStore } from "./state/captionStore";
+import { SentenceAssembler } from "./state/sentenceAssembler";
 import { renderOverlay } from "./ui/overlay";
 import {
   startTranscription,
@@ -58,11 +59,11 @@ async function toggleMic() {
   render();
 }
 
-// Decide per finished sentence whether to translate (and which direction) or just
-// show the original, based on the current mode + detected language.
+// Commit ONE finished sentence to history and translate it (per the current mode +
+// detected language). Called by the sentence assembler, not on every acoustic segment.
 async function handleFinal(text: string) {
   const plan = planUtterance(mode, text);
-  const id = store.commit(text, plan.sourceLang);
+  const id = store.addFinal(text, plan.sourceLang);
   if (plan.translateTo === null) return; // passthrough: show the original only
   try {
     const out = await translate(text, { source: plan.sourceLang, target: plan.translateTo });
@@ -70,6 +71,27 @@ async function handleFinal(text: string) {
   } catch (e) {
     store.setTranslation(id, `⚠️ 翻译失败: ${e}`);
   }
+}
+
+// Assemble acoustic segments into sentences before committing/translating. liveSegment
+// is the current acoustic segment's accumulating text; the live caption line shows the
+// in-progress SENTENCE = assembler buffer (held across pauses) + liveSegment.
+let liveSegment = "";
+const assembler = new SentenceAssembler({
+  idleMs: 700,
+  maxChars: 160,
+  onSentence: (s) => {
+    void handleFinal(s);
+    refreshLive();
+  },
+});
+function refreshLive() {
+  const buf = assembler.peek();
+  const live =
+    buf && liveSegment && /[A-Za-z0-9]$/.test(buf) && /^[A-Za-z0-9]/.test(liveSegment)
+      ? buf + " " + liveSegment
+      : buf + liveSegment;
+  store.setPartial(live, detectLang(live));
 }
 
 // Switch practice <-> interview: restart the transcription session with the new
@@ -80,6 +102,8 @@ async function toggleMode() {
   if (switching) return;
   switching = true;
   mode = mode === "practice" ? "interview" : "practice";
+  assembler.reset(); // drop any half-assembled sentence from the old session
+  liveSegment = "";
   store.current = null; // drop any in-flight partial from the old session
   conn = "切换中…";
   render();
@@ -134,11 +158,15 @@ async function main() {
     render();
   });
 
-  await onTranscript(async (m) => {
+  await onTranscript((m) => {
     if (m.kind === "partial") {
-      store.setPartial(m.text, detectLang(m.text));
+      liveSegment += m.text; // accumulate the current acoustic segment
+      assembler.touch(); // speech in progress — keep the idle flush from firing
+      refreshLive();
     } else if (m.kind === "final" && m.text.trim()) {
-      await handleFinal(m.text);
+      liveSegment = ""; // segment done; its text is authoritative via the assembler
+      assembler.feed(m.text); // splits into sentences / merges fragments → handleFinal
+      refreshLive(); // show the in-progress remainder (or clear)
     }
   });
 
