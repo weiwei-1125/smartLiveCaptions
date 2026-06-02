@@ -63,6 +63,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::has_api_key,
+            commands::get_api_key,
             commands::set_api_key,
             commands::translate,
             commands::start_transcription,

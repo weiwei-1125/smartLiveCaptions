@@ -51,4 +51,16 @@ describe("settings modal", () => {
     const input = document.querySelector("[data-settings] input") as HTMLInputElement;
     expect(input.value).toBe("sk-current");
   });
+
+  it("starts hidden and toggles key visibility with the eye button", () => {
+    openSettings({ onSave: () => {}, dismissable: true, currentKey: "sk-secret" });
+    const input = document.querySelector("[data-settings] input") as HTMLInputElement;
+    const eye = document.querySelector("[data-action='toggle-reveal']") as HTMLElement;
+    expect(eye).not.toBeNull();
+    expect(input.type).toBe("password"); // masked by default
+    eye.click();
+    expect(input.type).toBe("text"); // revealed
+    eye.click();
+    expect(input.type).toBe("password"); // hidden again
+  });
 });

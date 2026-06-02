@@ -3,6 +3,7 @@
 import "../styles.css";
 import { CaptionStore } from "../state/captionStore";
 import { renderOverlay } from "../ui/overlay";
+import { openSettings } from "../ui/settings";
 import type { Mode } from "../types";
 
 const root = document.getElementById("app")!;
@@ -45,4 +46,7 @@ function show(mode: Mode) {
 }
 
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;
+// Preview the settings modal: window.openKeySettings("sk-proj-...") to eyeball styling.
+(window as unknown as { openKeySettings: (key?: string) => void }).openKeySettings = (key?: string) =>
+  openSettings({ onSave: () => {}, dismissable: true, currentKey: key });
 show("zh2en");

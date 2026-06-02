@@ -13,7 +13,7 @@ import {
   onConnError,
 } from "./services/transcription";
 import { translate } from "./services/translation";
-import { hasApiKey, setApiKey } from "./services/settings";
+import { hasApiKey, getApiKey, setApiKey } from "./services/settings";
 import { planUtterance, detectLang, transcriptionLangHint } from "./config/modes";
 import { toSimplified } from "./config/simplify";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -224,7 +224,7 @@ root.addEventListener("mousedown", (e) => {
     return;
   }
   if (target.closest("[data-action='open-settings']")) {
-    showSettings(false); // dismissable: changing the key while running
+    void showSettings(false); // dismissable: changing the key while running
     return;
   }
   const segEl = target.closest("[data-action='set-level']") as HTMLElement | null;
@@ -254,9 +254,12 @@ async function startPipeline() {
 // Open the API-key settings modal. firstRun = no key yet → the modal can't be dismissed
 // (the app is useless without a key). On save we persist, then either kick off the
 // pipeline (first run) or reconnect with the new key (changing it while running).
-function showSettings(firstRun: boolean) {
+async function showSettings(firstRun: boolean) {
+  // On reopen (gear), prefill the saved key so the user sees what's configured.
+  const currentKey = firstRun ? "" : await getApiKey().catch(() => "");
   openSettings({
     dismissable: !firstRun,
+    currentKey,
     onSave: async (key) => {
       await setApiKey(key); // persist to the per-user config + apply live (may throw)
       if (!started) await startPipeline();
@@ -292,7 +295,7 @@ async function main() {
   } else {
     conn = "请先设置 API Key ⚙️";
     render();
-    showSettings(true); // first run — must enter a key to continue
+    void showSettings(true); // first run — must enter a key to continue
   }
 }
 

@@ -41,6 +41,13 @@ pub fn has_api_key(state: State<AppState>) -> bool {
     !read_config(&state).openai_api_key.trim().is_empty()
 }
 
+/// The currently configured key, so the settings panel can prefill it (masked) and let
+/// the user confirm/reveal what they saved. Empty string when none is set.
+#[tauri::command]
+pub fn get_api_key(state: State<AppState>) -> String {
+    read_config(&state).openai_api_key
+}
+
 /// Persist the user's own OpenAI key to the per-user app config dir and apply it to
 /// the live config (no restart needed). The key is NEVER bundled — a fresh install
 /// has no config file and starts key-less until the user sets it here.
