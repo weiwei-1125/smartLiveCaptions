@@ -134,14 +134,15 @@ pub async fn connect(
     });
 
     // Read server events.
+    let started = std::time::Instant::now();
     eprintln!("[ws] connected; sent session_update (model={model}, language={language})");
     while let Some(msg) = read.next().await {
         match msg {
             Ok(Message::Text(txt)) => {
-                // Full raw dump only when SLC_DEBUG_WS is set; otherwise stay quiet
-                // (error frames are surfaced via TranscriptEvent::Error below).
+                // Full raw dump (with a relative timestamp) only when SLC_DEBUG_WS is set;
+                // otherwise stay quiet (errors are surfaced via TranscriptEvent::Error below).
                 if std::env::var("SLC_DEBUG_WS").is_ok() {
-                    eprintln!("[ws-recv] {txt}");
+                    eprintln!("[ws-recv +{}ms] {txt}", started.elapsed().as_millis());
                 }
                 if let Ok(v) = serde_json::from_str::<Value>(&txt) {
                     on_event(parse_event(&v));
