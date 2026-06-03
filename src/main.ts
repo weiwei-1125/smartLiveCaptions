@@ -12,6 +12,8 @@ import {
   pushAudio,
   onTranscript,
   onConnError,
+  onConnOpen,
+  onConnLost,
 } from "./services/transcription";
 import { translate } from "./services/translation";
 import { hasApiKey, getApiKey, setApiKey } from "./services/settings";
@@ -60,13 +62,16 @@ function setFontLevel(delta: number) {
 }
 
 // Topbar status: calm when ok, amber while connecting, red on error (detail shown on hover).
+// statusAction = "reconnect" makes the status a clickable retry button.
 let connText = "启动中…";
 let connKind: "ok" | "pending" | "error" = "pending";
 let connDetail = "";
-function setStatus(text: string, kind: "ok" | "pending" | "error", detail = "") {
+let connAction: "reconnect" | undefined;
+function setStatus(text: string, kind: "ok" | "pending" | "error", detail = "", action?: "reconnect") {
   connText = text;
   connKind = kind;
   connDetail = detail;
+  connAction = action;
 }
 
 function render() {
@@ -74,6 +79,7 @@ function render() {
     statusText: connText,
     statusKind: connKind,
     statusDetail: connDetail,
+    statusAction: connAction,
     mode,
     level,
     onTop,
@@ -111,7 +117,7 @@ async function toggleMic() {
       voiceActive = false; // no audio coming in → dot idle
     }
   } catch (e) {
-    setStatus("⚠ 麦克风错误", "error", String(e));
+    setStatus("麦克风错误", "error", String(e));
   }
   micFab.setMicOn(micOn);
   render();
@@ -157,6 +163,7 @@ function refreshLive() {
 // sentence so it can't leak across the restart.
 let switching = false;
 async function restartTranscription() {
+  clearReconnect(); // an intentional restart supersedes any pending auto-reconnect
   assembler.reset();
   liveSegment = "";
   store.current = null;
@@ -165,9 +172,9 @@ async function restartTranscription() {
   try {
     await stopTranscription();
     await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
-    setStatus("已连接", "ok");
+    // "已连接" is confirmed by the conn_open event
   } catch (e) {
-    setStatus("⚠ 连接失败", "error", `切换失败: ${e}`);
+    setStatus("连接失败", "error", `切换失败: ${e}`, "reconnect");
   }
   render();
 }
@@ -274,6 +281,10 @@ root.addEventListener("mousedown", (e) => {
     void getCurrentWindow().close();
     return;
   }
+  if (target.closest("[data-action='reconnect']")) {
+    reconnectNow(); // clicking the status while disconnected retries immediately
+    return;
+  }
   if (target.closest("[data-action='toggle-mic']")) {
     void toggleMic();
     return;
@@ -311,11 +322,86 @@ root.addEventListener("mousedown", (e) => {
 // key so we don't open a connection with an empty key on a fresh install.
 let started = false;
 async function startPipeline() {
+  setStatus("连接中…", "pending");
+  render();
   await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
   started = true;
-  setStatus("已连接", "ok");
+  // "已连接" is confirmed by the conn_open event; reconnect is handled below.
   render();
   await capture.start(onFrame);
+}
+
+// --- Connection self-healing: auto-reconnect on any unexpected drop, a clickable manual
+// retry, and reconnect-on-resume after the machine wakes from sleep. ---
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000; // exponential backoff, capped at RECONNECT_MAX
+let reconnectAttempts = 0;
+let lastActivity = 0; // performance.now() of the last conn_open / transcript
+const RECONNECT_MAX = 30000;
+const STALE_MS = 90000; // on resume, if quiet this long, assume the link died → reconnect
+
+const markActivity = () => {
+  lastActivity = performance.now();
+};
+function clearReconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectDelay = 1000;
+  reconnectAttempts = 0;
+}
+
+// Tear down the (possibly dead) session and open a fresh one. Success/failure arrives
+// asynchronously via the conn_open / conn_lost events.
+async function doReconnect() {
+  if (!started) return;
+  try {
+    await stopTranscription();
+    await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
+  } catch (e) {
+    connDetail = String(e);
+    scheduleReconnect(); // the IPC itself failed — back off and try again
+  }
+}
+
+// Called on conn_lost: show progress and retry with growing backoff (never gives up).
+function scheduleReconnect() {
+  if (!started || reconnectTimer) return;
+  reconnectAttempts++;
+  const escalated = reconnectAttempts >= 4; // a few quick tries failed → make it red + obvious
+  setStatus(
+    escalated ? "连接失败" : "重连中…",
+    escalated ? "error" : "pending",
+    connDetail,
+    "reconnect",
+  );
+  render();
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void doReconnect();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX);
+}
+
+// Manual retry (clicking the status) or focus-resume: reconnect right now, reset backoff.
+function reconnectNow() {
+  if (!started) return;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectDelay = 1000;
+  setStatus("重连中…", "pending", connDetail, "reconnect");
+  render();
+  void doReconnect();
+}
+
+// On window resume (focus / tab visible): if we're disconnected, or it's been quiet for a
+// long time (an undetected drop after sleep), reconnect immediately.
+function ensureConnected() {
+  if (!started) return;
+  if (connKind !== "ok" || performance.now() - lastActivity > STALE_MS) reconnectNow();
 }
 
 // Opt-in global mute hotkey. activeHotkey = the accelerator we currently hold ("" = none).
@@ -371,12 +457,25 @@ async function showSettings(firstRun: boolean) {
 async function main() {
   render(); // render the bar immediately so the (transparent) window is visible
 
-  await onConnError((msg) => {
-    setStatus("⚠ 连接失败", "error", msg);
+  // Connection lifecycle. conn_open confirms the link is live (and resets reconnect);
+  // conn_lost (any unexpected drop) triggers auto-reconnect; conn_error is informational
+  // (a server error message) — it doesn't itself change the connection state.
+  await onConnOpen(() => {
+    clearReconnect();
+    markActivity();
+    setStatus("已连接", "ok");
     render();
+  });
+  await onConnLost(() => {
+    if (started) scheduleReconnect();
+  });
+  await onConnError((msg) => {
+    connDetail = msg; // kept for the reconnect status' hover detail
+    console.warn(`[conn] ${msg}`);
   });
 
   await onTranscript((m) => {
+    markActivity(); // proves the link is alive — feeds the resume staleness check
     const text = toSimplified(m.text); // normalize any Traditional → Simplified
     if (m.kind === "partial") {
       liveSegment += text; // accumulate the current acoustic segment
@@ -387,6 +486,13 @@ async function main() {
       assembler.feed(text); // splits into sentences / merges fragments → handleFinal
       refreshLive(); // show the in-progress remainder (or clear)
     }
+  });
+
+  // Reconnect-on-resume: when the window regains focus or becomes visible (e.g. after the
+  // machine wakes from sleep), reconnect if the link is down or has been quiet too long.
+  window.addEventListener("focus", ensureConnected);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") ensureConnected();
   });
 
   // Re-register the saved global mute hotkey, if the user opted into one previously.
@@ -406,6 +512,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  setStatus("⚠ 启动失败", "error", String(e));
+  setStatus("启动失败", "error", String(e));
   render();
 });

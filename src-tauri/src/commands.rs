@@ -128,6 +128,10 @@ pub async fn start_transcription(
                 return;
             }
             let payload = match ev {
+                transcription::TranscriptEvent::Open => {
+                    let _ = app2.emit("conn_open", ()); // link is live → UI confirms / resets reconnect
+                    None
+                }
                 transcription::TranscriptEvent::Partial(t) => Some(TranscriptPayload {
                     kind: "partial".into(),
                     text: t,
@@ -148,15 +152,14 @@ pub async fn start_transcription(
             }
         })
         .await;
-        // Only report the outcome if this session is still the active one.
+        // If this session is still the active one, the connection has ended unexpectedly
+        // (drop / sleep / server close / error) → signal the UI to auto-reconnect.
         if gen_result.load(Ordering::SeqCst) == my_gen {
-            match result {
-                Err(e) => {
-                    eprintln!("[conn] transcription connect failed: {e}");
-                    let _ = app_err.emit("conn_error", e);
-                }
+            match &result {
+                Err(e) => eprintln!("[conn] transcription connect failed: {e}"),
                 Ok(()) => eprintln!("[conn] transcription connection closed"),
             }
+            let _ = app_err.emit("conn_lost", ());
         }
     });
     Ok(())

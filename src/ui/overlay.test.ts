@@ -58,6 +58,23 @@ describe("renderOverlay", () => {
     expect(root.querySelector(".status.status-ok")).not.toBeNull();
   });
 
+  it("shows a separate reconnect button when statusAction is set (text itself not clickable)", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), {
+      statusText: "连接失败",
+      statusKind: "error",
+      statusAction: "reconnect",
+      mode: "zh2en",
+      level: "balanced",
+      onTop: true,
+      fontLevel: 1,
+    });
+    expect(root.querySelector("button[data-action='reconnect']")).not.toBeNull();
+    expect(root.querySelector(".status[data-action]")).toBeNull(); // the text is not the button
+    // no reconnect affordance when connected
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
+    expect(root.querySelector("[data-action='reconnect']")).toBeNull();
+  });
+
   it("renders window controls: pin, minimize, maximize, close", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
     expect(root.querySelector("[data-action='toggle-pin']")).not.toBeNull();

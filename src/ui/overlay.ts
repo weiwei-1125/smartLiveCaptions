@@ -47,6 +47,7 @@ export interface OverlayChrome {
   statusText: string;
   statusKind: "ok" | "pending" | "error"; // calm when ok, amber when pending, red when error
   statusDetail?: string; // full message for hover (e.g. the error text)
+  statusAction?: "reconnect"; // when set, the status becomes a clickable retry button
   mode: Mode;
   level: string; // active sensitivity key: "fast" | "balanced" | "full"
   onTop: boolean; // window is always-on-top (pinned)
@@ -71,6 +72,8 @@ const ICON_CLEAR =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 const ICON_SETTINGS =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+const ICON_REFRESH =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
 
 // Distance (px) from the bottom within which we consider the user "pinned" to the
 // newest caption, so new text keeps auto-scrolling to the bottom.
@@ -109,10 +112,18 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   const closeBtn = `<button class="ctl iconbtn close" data-action="close" title="退出">${ICON_CLOSE}</button>`;
   const winctl = `<span class="winctl">${pinBtn}${minBtn}${maxBtn}${closeBtn}</span>`;
   // Status: calm when healthy, amber while connecting, red on error (detail on hover).
+  // When disconnected (statusAction = reconnect), a refresh icon button appears next to it
+  // (the reconnect affordance — the status text itself is not clickable).
   const statusTitle = escapeHtml(chrome.statusDetail || chrome.statusText);
   const status = `<span class="status status-${chrome.statusKind}" title="${statusTitle}">${escapeHtml(chrome.statusText)}</span>`;
+  // Refresh button lives inside the drag region; clicking it reconnects (the mousedown
+  // handler checks data-action='reconnect' before the drag), empty space still drags.
+  const refreshBtn =
+    chrome.statusAction === "reconnect"
+      ? ` <button class="ctl iconbtn refresh" data-action="reconnect" title="重新连接">${ICON_REFRESH}</button>`
+      : "";
   const topbar = `<div class="topbar">
-    <span class="drag" data-drag>⠿ ${status}</span>
+    <span class="drag" data-drag>⠿ ${status}${refreshBtn}</span>
     ${seg}${fontCtl}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 

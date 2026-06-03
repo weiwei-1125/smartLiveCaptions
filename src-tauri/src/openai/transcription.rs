@@ -2,6 +2,7 @@ use serde_json::Value;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TranscriptEvent {
+    Open, // WS connected + session configured — confirms the link is live (resets reconnect)
     Partial(String),
     Final(String),
     Error(String),
@@ -121,6 +122,9 @@ pub async fn connect(
         .send(Message::Text(session_update(&model, &language, silence_ms).to_string()))
         .await
         .map_err(|e| format!("session update failed: {e}"))?;
+
+    // The link is up and configured — let the UI confirm "connected" / reset reconnect state.
+    on_event(TranscriptEvent::Open);
 
     // Forward audio frames as input_audio_buffer.append events.
     let audio_task = tokio::spawn(async move {

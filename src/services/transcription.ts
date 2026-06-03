@@ -27,3 +27,13 @@ export function onTranscript(cb: (m: TranscriptMsg) => void): Promise<UnlistenFn
 export function onConnError(cb: (msg: string) => void): Promise<UnlistenFn> {
   return listen<string>("conn_error", (e) => cb(e.payload));
 }
+
+/** The transcription link is up and configured (confirms "connected" / resets reconnect). */
+export function onConnOpen(cb: () => void): Promise<UnlistenFn> {
+  return listen("conn_open", () => cb());
+}
+
+/** The link ended unexpectedly (drop / sleep / server close) while still the active session. */
+export function onConnLost(cb: () => void): Promise<UnlistenFn> {
+  return listen("conn_lost", () => cb());
+}

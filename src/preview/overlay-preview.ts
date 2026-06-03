@@ -56,6 +56,22 @@ function show(mode: Mode) {
     hotkey: { current: "Pause", onSet: async () => null, onClear: async () => {} },
   });
 
+// Status preview: window.setStatusPreview("⚠ 连接失败 · 点此重连", "error", "reconnect").
+(window as unknown as { setStatusPreview: (t: string, k: "ok" | "pending" | "error", a?: "reconnect") => void }).setStatusPreview = (
+  t,
+  k,
+  a,
+) =>
+  renderOverlay(root, sampleStore("zh2en"), {
+    statusText: t,
+    statusKind: k,
+    statusAction: a,
+    mode: "zh2en",
+    level: "balanced",
+    onTop: true,
+    fontLevel: 1,
+  });
+
 // Floating mic FAB preview. window.setMic(on, active) to eyeball each state.
 const fab = createMicFab(() => {});
 fab.setVoiceActive(true); // default: on + hearing voice (green glow)
