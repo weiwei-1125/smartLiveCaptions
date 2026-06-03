@@ -44,7 +44,8 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .mic-fab.off { opacity: .95; color: #ff8f8f; background: rgba(62, 24, 28, .6);
   border-color: rgba(255, 120, 120, .5); animation: none; }
 .mic-fab.off:hover { opacity: 1; background: rgba(82, 30, 34, .74); }
-.ctl.mode { color: #cdd5e2; background: rgba(91, 141, 239, .18); border-color: rgba(91, 141, 239, .4); }
+.ctl.mode { display: inline-flex; align-items: center; gap: 5px; color: #cdd5e2;
+  background: rgba(91, 141, 239, .18); border-color: rgba(91, 141, 239, .4); }
 .ctl.close { color: #ff8a8a; }
 .ctl.close:hover { background: rgba(255, 90, 90, .25); border-color: rgba(255, 90, 90, .5); }
 
@@ -52,7 +53,9 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
    the far right with a subtle separator, like a native titlebar. */
 .winctl { flex: none; display: inline-flex; align-items: center; gap: 4px;
   margin-left: 2px; padding-left: 8px; border-left: 1px solid rgba(255, 255, 255, .1); }
-.ctl.winop { display: inline-flex; align-items: center; justify-content: center;
+/* Compact icon-only buttons — used for both the action group (copy/clear/settings)
+   and the window controls, so the whole bar shares one button shape. */
+.ctl.iconbtn { display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 26px; padding: 0; border-radius: 7px; }
 .ctl.pin.active { color: #fff; background: rgba(91, 141, 239, .55); border-color: rgba(91, 141, 239, .7); }
 .ctl.pin.active:hover { background: rgba(91, 141, 239, .72); }

@@ -30,8 +30,11 @@ function blockHtml(u: Utterance, live: boolean): string {
 }
 
 function modeLabel(mode: Mode): string {
-  return mode === "zh2en" ? "🔄 中→英" : "🔄 英→中";
+  return mode === "zh2en" ? "中→英" : "英→中";
 }
+
+const ICON_CLOSE =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
 
 // Sensitivity presets shown as a segmented control (current one highlighted).
 const LEVEL_SEGMENTS: Array<{ key: string; label: string }> = [
@@ -58,6 +61,17 @@ const ICON_MIN =
 const ICON_MAX =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>';
 
+// Action-button glyphs (same monochrome Feather language). Swap arrows for mode, a
+// lined clipboard for copy-all, a trash can for clear, a gear for settings.
+const ICON_SWAP =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+const ICON_COPY_ALL =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>';
+const ICON_CLEAR =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+const ICON_SETTINGS =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
 // Distance (px) from the bottom within which we consider the user "pinned" to the
 // newest caption, so new text keeps auto-scrolling to the bottom.
 const PIN_THRESHOLD = 48;
@@ -76,23 +90,23 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
 
   // Icon-forward top bar. The ⠿ handle (data-drag) is the only drag region; the
   // buttons are siblings so they stay clickable. (Mic lives in a floating FAB, not here.)
-  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换翻译方向（中 ↔ 英）">${modeLabel(chrome.mode)}</button>`;
+  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换翻译方向（中 ↔ 英）">${ICON_SWAP}<span>${modeLabel(chrome.mode)}</span></button>`;
   const seg = `<div class="seg" title="灵敏度：快=最跟手出字 / 整句=最完整不切碎">${LEVEL_SEGMENTS.map(
     (s) => `<button class="seg-item${s.key === chrome.level ? " active" : ""}" data-action="set-level" data-level="${s.key}">${s.label}</button>`,
   ).join("")}</div>`;
-  const copyAllBtn = `<button class="ctl" data-action="copy-all" title="复制全部对话（中英）">📋</button>`;
-  const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
-  const settingsBtn = `<button class="ctl" data-action="open-settings" title="设置 API Key">⚙️</button>`;
+  const copyAllBtn = `<button class="ctl iconbtn" data-action="copy-all" title="复制全部对话（中英）">${ICON_COPY_ALL}</button>`;
+  const clearBtn = `<button class="ctl iconbtn clear" data-action="clear" title="清除字幕">${ICON_CLEAR}</button>`;
+  const settingsBtn = `<button class="ctl iconbtn" data-action="open-settings" title="设置">${ICON_SETTINGS}</button>`;
   // Caption font-size stepper (scales original + translation together; choice is remembered).
   const fontCtl = `<span class="fontctl" title="字幕字号">
     <button class="font-btn" data-action="font-smaller" title="缩小字号"${chrome.fontLevel <= 0 ? " disabled" : ""}>A−</button>
     <button class="font-btn" data-action="font-bigger" title="放大字号"${chrome.fontLevel >= FONT_SCALES.length - 1 ? " disabled" : ""}>A+</button>
   </span>`;
   // Window controls (Windows-like), grouped at the far right. Pin toggles always-on-top.
-  const pinBtn = `<button class="ctl winop pin${chrome.onTop ? " active" : ""}" data-action="toggle-pin" title="${chrome.onTop ? "已置顶（点击取消）" : "未置顶（点击置顶）"}">${ICON_PIN}</button>`;
-  const minBtn = `<button class="ctl winop" data-action="minimize" title="最小化">${ICON_MIN}</button>`;
-  const maxBtn = `<button class="ctl winop" data-action="toggle-maximize" title="最大化 / 还原">${ICON_MAX}</button>`;
-  const closeBtn = `<button class="ctl winop close" data-action="close" title="退出">✕</button>`;
+  const pinBtn = `<button class="ctl iconbtn pin${chrome.onTop ? " active" : ""}" data-action="toggle-pin" title="${chrome.onTop ? "已置顶（点击取消）" : "未置顶（点击置顶）"}">${ICON_PIN}</button>`;
+  const minBtn = `<button class="ctl iconbtn" data-action="minimize" title="最小化">${ICON_MIN}</button>`;
+  const maxBtn = `<button class="ctl iconbtn" data-action="toggle-maximize" title="最大化 / 还原">${ICON_MAX}</button>`;
+  const closeBtn = `<button class="ctl iconbtn close" data-action="close" title="退出">${ICON_CLOSE}</button>`;
   const winctl = `<span class="winctl">${pinBtn}${minBtn}${maxBtn}${closeBtn}</span>`;
   // Status: calm when healthy, amber while connecting, red on error (detail on hover).
   const statusTitle = escapeHtml(chrome.statusDetail || chrome.statusText);
