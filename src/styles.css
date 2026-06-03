@@ -13,6 +13,10 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .drag { flex: 1; font-size: 12px; color: #8a8f99; letter-spacing: .2px;
   cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .drag:active { cursor: grabbing; }
+/* Status: calm grey when healthy, amber while connecting, red (bolder) on error. */
+.status-ok { color: #8a8f99; }
+.status-pending { color: #e6b84d; }
+.status-error { color: #ff8f8f; font-weight: 600; }
 .ctl { flex: none; font-size: 12px; color: #cdd5e2; background: rgba(255, 255, 255, .08);
   border: 1px solid rgba(255, 255, 255, .14); border-radius: 16px; padding: 3px 10px;
   cursor: pointer; font-family: inherit; white-space: nowrap; }
@@ -61,6 +65,14 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .seg-item:hover { color: #cdd5e2; }
 .seg-item.active { color: #fff; background: rgba(91, 141, 239, .55); }
 
+/* Caption font-size stepper (A− / A+), grouped like the segmented control. */
+.fontctl { flex: none; display: inline-flex; gap: 2px; padding: 2px; border-radius: 16px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14); }
+.font-btn { font-size: 12px; color: #9aa0a8; background: transparent; border: none;
+  border-radius: 14px; padding: 3px 9px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.font-btn:hover:not(:disabled) { color: #cdd5e2; background: rgba(255, 255, 255, .1); }
+.font-btn:disabled { opacity: .3; cursor: default; }
+
 /* Captions fill the rest. Scrollable so the user can scroll up to read history; new
    text auto-pins to the bottom unless they've scrolled up (see overlay.ts). We use
    `margin-top:auto` on the first block (NOT justify-content:flex-end, which clips the
@@ -75,10 +87,11 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 
 .blk:not(.live) { opacity: .55; }
 .blk:hover { opacity: 1; } /* brighten the line you're hovering (e.g. to copy it) */
-.orig { position: relative; font-size: 19px; font-weight: 600; line-height: 1.4; }
+/* Caption sizes scale together via --cap-scale (set by the A−/A+ stepper; see main.ts). */
+.orig { position: relative; font-size: calc(19px * var(--cap-scale, 1)); font-weight: 600; line-height: 1.4; }
 .orig.zh { color: #9fd0ff; } .orig.en { color: #a9e8c0; }
-.trans { position: relative; margin-top: 5px; padding: 7px 10px; font-size: 18px; color: #eef1f6;
-  line-height: 1.45; background: rgba(255, 255, 255, .07); border-left: 3px solid #5b8def; border-radius: 6px; }
+.trans { position: relative; margin-top: 5px; padding: 7px 10px; font-size: calc(18px * var(--cap-scale, 1));
+  color: #eef1f6; line-height: 1.45; background: rgba(255, 255, 255, .07); border-left: 3px solid #5b8def; border-radius: 6px; }
 .cursor { display: inline-block; width: 2px; height: 16px; background: #9fd0ff;
   margin-left: 3px; vertical-align: -2px; animation: blink .8s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }

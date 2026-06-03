@@ -9,8 +9,14 @@ beforeEach(() => {
   root = document.createElement("div");
 });
 
-function chrome(mode: Mode = "zh2en", level = "balanced", onTop = true): OverlayChrome {
-  return { statusText: "已连接", mode, level, onTop };
+function chrome(
+  mode: Mode = "zh2en",
+  level = "balanced",
+  onTop = true,
+  fontLevel = 1,
+  statusKind: "ok" | "pending" | "error" = "ok",
+): OverlayChrome {
+  return { statusText: "已连接", mode, level, onTop, fontLevel, statusKind };
 }
 
 describe("renderOverlay", () => {
@@ -29,6 +35,27 @@ describe("renderOverlay", () => {
   it("renders a settings (gear) button", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
     expect(root.querySelector("[data-action='open-settings']")).not.toBeNull();
+  });
+
+  it("renders the font A−/A+ stepper", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
+    expect(root.querySelector("[data-action='font-smaller']")).not.toBeNull();
+    expect(root.querySelector("[data-action='font-bigger']")).not.toBeNull();
+  });
+
+  it("disables A− at the smallest level and A+ at the largest", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 0));
+    expect((root.querySelector("[data-action='font-smaller']") as HTMLButtonElement).disabled).toBe(true);
+    expect((root.querySelector("[data-action='font-bigger']") as HTMLButtonElement).disabled).toBe(false);
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 3));
+    expect((root.querySelector("[data-action='font-bigger']") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("styles the status text by kind", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 1, "error"));
+    expect(root.querySelector(".status.status-error")).not.toBeNull();
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 1, "ok"));
+    expect(root.querySelector(".status.status-ok")).not.toBeNull();
   });
 
   it("renders window controls: pin, minimize, maximize, close", () => {

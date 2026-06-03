@@ -18,6 +18,7 @@ import { hasApiKey, getApiKey, setApiKey } from "./services/settings";
 import { getSavedHotkey, saveHotkey, registerMuteHotkey, unregisterHotkey } from "./services/hotkey";
 import { planUtterance, detectLang, transcriptionLangHint } from "./config/modes";
 import { toSimplified } from "./config/simplify";
+import { FONT_SCALES, DEFAULT_FONT_LEVEL } from "./config/fontScales";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Mode } from "./types";
 
@@ -39,15 +40,48 @@ let micOn = true;
 let level: Level = "balanced";
 let onTop = true; // window starts always-on-top (matches tauri.conf alwaysOnTop); pin toggles it
 let voiceActive = false; // mic is currently hearing your voice — drives the activity dot
-let conn = "启动中…";
 
-function statusText(): string {
-  return conn;
+// Caption font size: an index into FONT_SCALES, remembered across launches via localStorage.
+function clampFont(n: number): number {
+  if (!Number.isFinite(n)) n = DEFAULT_FONT_LEVEL;
+  return Math.max(0, Math.min(FONT_SCALES.length - 1, Math.round(n)));
 }
+let fontLevel = clampFont(Number(localStorage.getItem("capFontLevel") ?? DEFAULT_FONT_LEVEL));
+function applyFontScale() {
+  document.body.style.setProperty("--cap-scale", String(FONT_SCALES[fontLevel]));
+}
+function setFontLevel(delta: number) {
+  const next = clampFont(fontLevel + delta);
+  if (next === fontLevel) return;
+  fontLevel = next;
+  localStorage.setItem("capFontLevel", String(fontLevel));
+  applyFontScale();
+  render();
+}
+
+// Topbar status: calm when ok, amber while connecting, red on error (detail shown on hover).
+let connText = "启动中…";
+let connKind: "ok" | "pending" | "error" = "pending";
+let connDetail = "";
+function setStatus(text: string, kind: "ok" | "pending" | "error", detail = "") {
+  connText = text;
+  connKind = kind;
+  connDetail = detail;
+}
+
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, level, onTop });
+  renderOverlay(root, store, {
+    statusText: connText,
+    statusKind: connKind,
+    statusDetail: connDetail,
+    mode,
+    level,
+    onTop,
+    fontLevel,
+  });
 }
 store.subscribe(render);
+applyFontScale(); // apply the remembered caption size before the first paint
 
 const vad = new EnergyVad({ threshold: 600, hangoverFrames: 8 });
 const capture = new AudioCapture();
@@ -77,7 +111,7 @@ async function toggleMic() {
       voiceActive = false; // no audio coming in → dot idle
     }
   } catch (e) {
-    conn = `麦克风错误: ${e}`;
+    setStatus("⚠ 麦克风错误", "error", String(e));
   }
   micFab.setMicOn(micOn);
   render();
@@ -126,14 +160,14 @@ async function restartTranscription() {
   assembler.reset();
   liveSegment = "";
   store.current = null;
-  conn = "切换中…";
+  setStatus("连接中…", "pending");
   render();
   try {
     await stopTranscription();
     await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
-    conn = "已连接，正在听…";
+    setStatus("已连接", "ok");
   } catch (e) {
-    conn = `切换失败: ${e}`;
+    setStatus("⚠ 连接失败", "error", `切换失败: ${e}`);
   }
   render();
 }
@@ -252,6 +286,14 @@ root.addEventListener("mousedown", (e) => {
     void showSettings(false); // dismissable: changing the key while running
     return;
   }
+  if (target.closest("[data-action='font-smaller']")) {
+    setFontLevel(-1);
+    return;
+  }
+  if (target.closest("[data-action='font-bigger']")) {
+    setFontLevel(1);
+    return;
+  }
   const segEl = target.closest("[data-action='set-level']") as HTMLElement | null;
   if (segEl) {
     void setLevel(segEl.dataset.level as Level);
@@ -271,7 +313,7 @@ let started = false;
 async function startPipeline() {
   await startTranscription(transcriptionLangHint(mode), LEVELS[level].silenceMs);
   started = true;
-  conn = "已连接，正在听…";
+  setStatus("已连接", "ok");
   render();
   await capture.start(onFrame);
 }
@@ -330,7 +372,7 @@ async function main() {
   render(); // render the bar immediately so the (transparent) window is visible
 
   await onConnError((msg) => {
-    conn = `⚠️ 连接失败: ${msg}`;
+    setStatus("⚠ 连接失败", "error", msg);
     render();
   });
 
@@ -357,13 +399,13 @@ async function main() {
   if (await hasApiKey()) {
     await startPipeline();
   } else {
-    conn = "请先设置 API Key ⚙️";
+    setStatus("请先设置 API Key", "pending");
     render();
     void showSettings(true); // first run — must enter a key to continue
   }
 }
 
 main().catch((e) => {
-  conn = `启动失败: ${e}`;
+  setStatus("⚠ 启动失败", "error", String(e));
   render();
 });

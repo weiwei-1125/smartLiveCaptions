@@ -43,7 +43,7 @@ function sampleStore(mode: Mode): CaptionStore {
 
 function show(mode: Mode) {
   label.textContent = `Overlay preview · mode = ${mode}`;
-  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听…", mode, level: "balanced", onTop: true });
+  renderOverlay(root, sampleStore(mode), { statusText: "已连接", statusKind: "ok", mode, level: "balanced", onTop: true, fontLevel: 1 });
 }
 
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;

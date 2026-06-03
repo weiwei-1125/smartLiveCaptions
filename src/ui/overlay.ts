@@ -1,5 +1,6 @@
 import type { CaptionStore } from "../state/captionStore";
 import type { Utterance, Mode } from "../types";
+import { FONT_SCALES } from "../config/fontScales";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
@@ -41,9 +42,12 @@ const LEVEL_SEGMENTS: Array<{ key: string; label: string }> = [
 
 export interface OverlayChrome {
   statusText: string;
+  statusKind: "ok" | "pending" | "error"; // calm when ok, amber when pending, red when error
+  statusDetail?: string; // full message for hover (e.g. the error text)
   mode: Mode;
   level: string; // active sensitivity key: "fast" | "balanced" | "full"
   onTop: boolean; // window is always-on-top (pinned)
+  fontLevel: number; // index into FONT_SCALES (for disabling A−/A+ at the ends)
 }
 
 // Monochrome window-control glyphs (inherit currentColor, same language as the copy/eye icons).
@@ -79,15 +83,23 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   const copyAllBtn = `<button class="ctl" data-action="copy-all" title="复制全部对话（中英）">📋</button>`;
   const clearBtn = `<button class="ctl clear" data-action="clear" title="清除字幕">🧹</button>`;
   const settingsBtn = `<button class="ctl" data-action="open-settings" title="设置 API Key">⚙️</button>`;
+  // Caption font-size stepper (scales original + translation together; choice is remembered).
+  const fontCtl = `<span class="fontctl" title="字幕字号">
+    <button class="font-btn" data-action="font-smaller" title="缩小字号"${chrome.fontLevel <= 0 ? " disabled" : ""}>A−</button>
+    <button class="font-btn" data-action="font-bigger" title="放大字号"${chrome.fontLevel >= FONT_SCALES.length - 1 ? " disabled" : ""}>A+</button>
+  </span>`;
   // Window controls (Windows-like), grouped at the far right. Pin toggles always-on-top.
   const pinBtn = `<button class="ctl winop pin${chrome.onTop ? " active" : ""}" data-action="toggle-pin" title="${chrome.onTop ? "已置顶（点击取消）" : "未置顶（点击置顶）"}">${ICON_PIN}</button>`;
   const minBtn = `<button class="ctl winop" data-action="minimize" title="最小化">${ICON_MIN}</button>`;
   const maxBtn = `<button class="ctl winop" data-action="toggle-maximize" title="最大化 / 还原">${ICON_MAX}</button>`;
   const closeBtn = `<button class="ctl winop close" data-action="close" title="退出">✕</button>`;
   const winctl = `<span class="winctl">${pinBtn}${minBtn}${maxBtn}${closeBtn}</span>`;
+  // Status: calm when healthy, amber while connecting, red on error (detail on hover).
+  const statusTitle = escapeHtml(chrome.statusDetail || chrome.statusText);
+  const status = `<span class="status status-${chrome.statusKind}" title="${statusTitle}">${escapeHtml(chrome.statusText)}</span>`;
   const topbar = `<div class="topbar">
-    <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
-    ${seg}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
+    <span class="drag" data-drag>⠿ ${status}</span>
+    ${seg}${fontCtl}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;
