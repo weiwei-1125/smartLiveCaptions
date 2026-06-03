@@ -9,21 +9,14 @@ beforeEach(() => {
   root = document.createElement("div");
 });
 
-function chrome(
-  mode: Mode = "zh2en",
-  micOn = true,
-  level = "balanced",
-  onTop = true,
-  voiceActive = false,
-): OverlayChrome {
-  return { statusText: "已连接", mode, micOn, level, onTop, voiceActive };
+function chrome(mode: Mode = "zh2en", level = "balanced", onTop = true): OverlayChrome {
+  return { statusText: "已连接", mode, level, onTop };
 }
 
 describe("renderOverlay", () => {
-  it("renders drag handle, mic, mode, sensitivity segments, copy-all, clear, close", () => {
+  it("renders drag handle, mode, sensitivity segments, copy-all, clear, close", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en"));
     expect(root.querySelector("[data-drag]")).not.toBeNull();
-    expect(root.querySelector("[data-action='toggle-mic']")).not.toBeNull();
     expect(root.querySelectorAll("[data-action='set-level']").length).toBe(3); // 快/平衡/整句
     expect(root.querySelector("[data-action='copy-all']")).not.toBeNull();
     expect(root.querySelector("[data-action='clear']")).not.toBeNull();
@@ -47,9 +40,9 @@ describe("renderOverlay", () => {
   });
 
   it("reflects always-on-top state on the pin button", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true));
     expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(true);
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", false));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", false));
     expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(false);
   });
 
@@ -59,26 +52,10 @@ describe("renderOverlay", () => {
   });
 
   it("highlights the active sensitivity segment", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "full"));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "full"));
     const active = root.querySelector(".seg-item.active")!;
     expect(active.getAttribute("data-level")).toBe("full");
     expect(active.textContent).toBe("整句");
-  });
-
-  it("renders a voice-activity dot that reflects voiceActive", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true, true));
-    expect(root.querySelector(".vad-dot.active")).not.toBeNull();
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true, "balanced", true, false));
-    const dot = root.querySelector(".vad-dot");
-    expect(dot).not.toBeNull();
-    expect(dot!.classList.contains("active")).toBe(false);
-  });
-
-  it("reflects the mic on/off state on the mic button", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", true));
-    expect(root.querySelector(".ctl.mic")!.classList.contains("on")).toBe(true);
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", false));
-    expect(root.querySelector(".ctl.mic")!.classList.contains("off")).toBe(true);
   });
 
   it("renders history oldest-first then the live current block last", () => {

@@ -42,18 +42,9 @@ const LEVEL_SEGMENTS: Array<{ key: string; label: string }> = [
 export interface OverlayChrome {
   statusText: string;
   mode: Mode;
-  micOn: boolean;
   level: string; // active sensitivity key: "fast" | "balanced" | "full"
   onTop: boolean; // window is always-on-top (pinned)
-  voiceActive: boolean; // mic is currently picking up your voice (drives the activity dot)
 }
-
-// Mic glyphs (monochrome SVG, same language as the copy/eye/window icons). Off is a
-// slashed *microphone* — not a speaker — so it reads as "mic muted", not "sound off".
-const ICON_MIC =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 11v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
-const ICON_MIC_OFF =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" y1="2" x2="22" y2="22"/><path d="M9 9v2a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-1m14 0v1a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
 
 // Monochrome window-control glyphs (inherit currentColor, same language as the copy/eye icons).
 const ICON_PIN =
@@ -80,8 +71,7 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   if (store.current) blocks.push(blockHtml(store.current, true));
 
   // Icon-forward top bar. The ⠿ handle (data-drag) is the only drag region; the
-  // buttons are siblings so they stay clickable.
-  const micBtn = `<button class="ctl mic ${chrome.micOn ? "on" : "off"}" data-action="toggle-mic" title="${chrome.micOn ? "收音中（点击暂停）" : "已停（点击恢复）"}">${chrome.micOn ? ICON_MIC : ICON_MIC_OFF}</button>`;
+  // buttons are siblings so they stay clickable. (Mic lives in a floating FAB, not here.)
   const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换翻译方向（中 ↔ 英）">${modeLabel(chrome.mode)}</button>`;
   const seg = `<div class="seg" title="灵敏度：快=最跟手出字 / 整句=最完整不切碎">${LEVEL_SEGMENTS.map(
     (s) => `<button class="seg-item${s.key === chrome.level ? " active" : ""}" data-action="set-level" data-level="${s.key}">${s.label}</button>`,
@@ -95,13 +85,9 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   const maxBtn = `<button class="ctl winop" data-action="toggle-maximize" title="最大化 / 还原">${ICON_MAX}</button>`;
   const closeBtn = `<button class="ctl winop close" data-action="close" title="退出">✕</button>`;
   const winctl = `<span class="winctl">${pinBtn}${minBtn}${maxBtn}${closeBtn}</span>`;
-  // Voice-activity dot: lights green + pulses while your voice is being picked up,
-  // dims to grey when silent. Replaces the old "🎤 <frames>" debug counter and removes
-  // the duplicate mic glyph (the mic now appears only on the toggle button).
-  const vadDot = `<span class="vad-dot${chrome.voiceActive ? " active" : ""}" title="${chrome.voiceActive ? "正在听到你说话" : "未检测到语音"}"></span>`;
   const topbar = `<div class="topbar">
-    <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}${vadDot}</span>
-    ${seg}${micBtn}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
+    <span class="drag" data-drag>⠿ ${escapeHtml(chrome.statusText)}</span>
+    ${seg}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

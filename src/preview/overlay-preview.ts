@@ -3,6 +3,7 @@
 import "../styles.css";
 import { CaptionStore } from "../state/captionStore";
 import { renderOverlay } from "../ui/overlay";
+import { createMicFab } from "../ui/micFab";
 import { openSettings } from "../ui/settings";
 import type { Mode } from "../types";
 
@@ -42,11 +43,20 @@ function sampleStore(mode: Mode): CaptionStore {
 
 function show(mode: Mode) {
   label.textContent = `Overlay preview · mode = ${mode}`;
-  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听…", mode, micOn: true, level: "balanced", onTop: true, voiceActive: true });
+  renderOverlay(root, sampleStore(mode), { statusText: "已连接，正在听…", mode, level: "balanced", onTop: true });
 }
 
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;
 // Preview the settings modal: window.openKeySettings("sk-proj-...") to eyeball styling.
 (window as unknown as { openKeySettings: (key?: string) => void }).openKeySettings = (key?: string) =>
   openSettings({ onSave: () => {}, dismissable: true, currentKey: key });
+
+// Floating mic FAB preview. window.setMic(on, active) to eyeball each state.
+const fab = createMicFab(() => {});
+fab.setVoiceActive(true); // default: on + hearing voice (green glow)
+(window as unknown as { setMic: (on: boolean, active: boolean) => void }).setMic = (on, active) => {
+  fab.setMicOn(on);
+  fab.setVoiceActive(active);
+};
+
 show("zh2en");

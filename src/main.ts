@@ -4,6 +4,7 @@ import { EnergyVad } from "./audio/vad";
 import { CaptionStore } from "./state/captionStore";
 import { SentenceAssembler } from "./state/sentenceAssembler";
 import { renderOverlay } from "./ui/overlay";
+import { createMicFab } from "./ui/micFab";
 import { openSettings, closeSettings } from "./ui/settings";
 import {
   startTranscription,
@@ -43,12 +44,15 @@ function statusText(): string {
   return conn;
 }
 function render() {
-  renderOverlay(root, store, { statusText: statusText(), mode, micOn, level, onTop, voiceActive });
+  renderOverlay(root, store, { statusText: statusText(), mode, level, onTop });
 }
 store.subscribe(render);
 
 const vad = new EnergyVad({ threshold: 600, hangoverFrames: 8 });
 const capture = new AudioCapture();
+// Floating mic toggle — the primary control, lives over the captions (not in the topbar).
+// Kept in sync via setMicOn / setVoiceActive; clicking it toggles capture.
+const micFab = createMicFab(() => void toggleMic());
 
 // Gate mic frames through the VAD and forward speech to the transcription stream.
 function onFrame(frame: Int16Array) {
@@ -58,7 +62,7 @@ function onFrame(frame: Int16Array) {
   // real time; the overlay itself re-renders on caption changes.
   if (speech !== voiceActive) {
     voiceActive = speech;
-    root.querySelector(".vad-dot")?.classList.toggle("active", voiceActive);
+    micFab.setVoiceActive(voiceActive);
   }
 }
 
@@ -74,6 +78,7 @@ async function toggleMic() {
   } catch (e) {
     conn = `麦克风错误: ${e}`;
   }
+  micFab.setMicOn(micOn);
   render();
 }
 
