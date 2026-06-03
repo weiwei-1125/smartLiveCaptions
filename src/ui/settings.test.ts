@@ -40,6 +40,28 @@ describe("settings modal", () => {
     expect(document.querySelector("[data-action='cancel-settings']")).toBeNull();
   });
 
+  it("renders the global-hotkey section only when hotkey opts are provided", () => {
+    openSettings({ onSave: () => {}, dismissable: true });
+    expect(document.querySelector("[data-action='record-hotkey']")).toBeNull(); // off by default
+    closeSettings();
+    openSettings({
+      onSave: () => {},
+      dismissable: true,
+      hotkey: { current: "", onSet: async () => null, onClear: async () => {} },
+    });
+    expect(document.querySelector("[data-action='record-hotkey']")).not.toBeNull();
+    expect(document.querySelector("[data-action='clear-hotkey']")).not.toBeNull();
+  });
+
+  it("shows the currently configured hotkey", () => {
+    openSettings({
+      onSave: () => {},
+      dismissable: true,
+      hotkey: { current: "Pause", onSet: async () => null, onClear: async () => {} },
+    });
+    expect(document.querySelector("[data-hotkey-current]")!.textContent).toContain("Pause");
+  });
+
   it("closeSettings removes the modal", () => {
     openSettings({ onSave: () => {}, dismissable: true });
     closeSettings();

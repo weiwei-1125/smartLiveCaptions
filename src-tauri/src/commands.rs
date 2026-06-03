@@ -66,6 +66,30 @@ pub fn set_api_key(app: tauri::AppHandle, state: State<AppState>, key: String) -
     crate::config::save_to_file(&path, &new_cfg)
 }
 
+/// The saved opt-in global mute hotkey accelerator ("" = none). The frontend reads this
+/// on startup to (re)register it, and writes it via `set_hotkey`.
+#[tauri::command]
+pub fn get_hotkey(state: State<AppState>) -> String {
+    read_config(&state).mute_hotkey
+}
+
+/// Persist the chosen global mute hotkey (or "" to clear it). Registration itself happens
+/// in the frontend via the global-shortcut plugin; this only stores the choice.
+#[tauri::command]
+pub fn set_hotkey(app: tauri::AppHandle, state: State<AppState>, hotkey: String) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no app config dir: {e}"))?
+        .join("config.json");
+    let new_cfg = {
+        let mut cfg = state.config.write().unwrap_or_else(|p| p.into_inner());
+        cfg.mute_hotkey = hotkey.trim().to_string();
+        cfg.clone()
+    };
+    crate::config::save_to_file(&path, &new_cfg)
+}
+
 #[tauri::command]
 pub async fn translate(state: State<'_, AppState>, prompt: String) -> Result<String, String> {
     let cfg = read_config(&state);

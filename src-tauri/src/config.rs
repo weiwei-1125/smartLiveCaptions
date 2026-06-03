@@ -7,6 +7,10 @@ pub struct AppConfig {
     pub translation_model: String,
     #[serde(default = "default_transcription_model")]
     pub transcription_model: String,
+    /// Accelerator string for the opt-in global mute hotkey (e.g. "Pause", "Ctrl+Alt+M").
+    /// Empty = no global hotkey registered (the default — nothing is grabbed system-wide).
+    #[serde(default)]
+    pub mute_hotkey: String,
 }
 
 fn default_translation_model() -> String { "gpt-4.1-nano".to_string() }
@@ -20,6 +24,7 @@ impl AppConfig {
             openai_api_key: String::new(),
             translation_model: default_translation_model(),
             transcription_model: default_transcription_model(),
+            mute_hotkey: String::new(),
         }
     }
 }
@@ -76,12 +81,14 @@ mod tests {
             openai_api_key: "sk-roundtrip".into(),
             translation_model: "gpt-4.1-nano".into(),
             transcription_model: "gpt-4o-transcribe".into(),
+            mute_hotkey: "Pause".into(),
         };
         save_to_file(&path, &cfg).unwrap();
         let loaded = load_from_file(&path).unwrap();
         assert_eq!(loaded.openai_api_key, "sk-roundtrip");
         assert_eq!(loaded.translation_model, "gpt-4.1-nano");
         assert_eq!(loaded.transcription_model, "gpt-4o-transcribe");
+        assert_eq!(loaded.mute_hotkey, "Pause");
         let _ = std::fs::remove_file(&path);
     }
 
@@ -102,6 +109,7 @@ mod tests {
             openai_api_key: "sk-existing".into(),
             translation_model: "gpt-4.1-nano".into(),
             transcription_model: "gpt-4o-transcribe".into(),
+            mute_hotkey: String::new(),
         };
         save_to_file(&path, &cfg).unwrap();
         let loaded = load_or_default(&path);

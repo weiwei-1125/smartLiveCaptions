@@ -49,7 +49,12 @@ function show(mode: Mode) {
 (window as unknown as { setMode: (m: Mode) => void }).setMode = show;
 // Preview the settings modal: window.openKeySettings("sk-proj-...") to eyeball styling.
 (window as unknown as { openKeySettings: (key?: string) => void }).openKeySettings = (key?: string) =>
-  openSettings({ onSave: () => {}, dismissable: true, currentKey: key });
+  openSettings({
+    onSave: () => {},
+    dismissable: true,
+    currentKey: key,
+    hotkey: { current: "Pause", onSet: async () => null, onClear: async () => {} },
+  });
 
 // Floating mic FAB preview. window.setMic(on, active) to eyeball each state.
 const fab = createMicFab(() => {});

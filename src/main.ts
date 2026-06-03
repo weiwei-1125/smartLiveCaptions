@@ -15,6 +15,7 @@ import {
 } from "./services/transcription";
 import { translate } from "./services/translation";
 import { hasApiKey, getApiKey, setApiKey } from "./services/settings";
+import { getSavedHotkey, saveHotkey, registerMuteHotkey, unregisterHotkey } from "./services/hotkey";
 import { planUtterance, detectLang, transcriptionLangHint } from "./config/modes";
 import { toSimplified } from "./config/simplify";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -275,12 +276,32 @@ async function startPipeline() {
   await capture.start(onFrame);
 }
 
+// Opt-in global mute hotkey. activeHotkey = the accelerator we currently hold ("" = none).
+// It's registered only when the user sets one (nothing is grabbed system-wide by default),
+// and it toggles the mic even when the app is in the background.
+let activeHotkey = "";
+async function applyHotkey(accel: string): Promise<string | null> {
+  if (activeHotkey) {
+    await unregisterHotkey(activeHotkey); // drop the previous one first so re-recording is clean
+    activeHotkey = "";
+  }
+  if (!accel) return null;
+  try {
+    await registerMuteHotkey(accel, () => void toggleMic());
+    activeHotkey = accel;
+    return null;
+  } catch {
+    return `「${accel}」注册失败，可能已被其它软件占用，请换一个`;
+  }
+}
+
 // Open the API-key settings modal. firstRun = no key yet → the modal can't be dismissed
 // (the app is useless without a key). On save we persist, then either kick off the
 // pipeline (first run) or reconnect with the new key (changing it while running).
 async function showSettings(firstRun: boolean) {
-  // On reopen (gear), prefill the saved key so the user sees what's configured.
+  // On reopen (gear), prefill the saved key + hotkey so the user sees what's configured.
   const currentKey = firstRun ? "" : await getApiKey().catch(() => "");
+  const savedHotkey = await getSavedHotkey().catch(() => "");
   openSettings({
     dismissable: !firstRun,
     currentKey,
@@ -289,6 +310,18 @@ async function showSettings(firstRun: boolean) {
       if (!started) await startPipeline();
       else await restartTranscription();
       closeSettings();
+    },
+    hotkey: {
+      current: savedHotkey,
+      onSet: async (accel) => {
+        const err = await applyHotkey(accel); // register first; only persist if it took
+        if (!err) await saveHotkey(accel);
+        return err;
+      },
+      onClear: async () => {
+        await applyHotkey(""); // unregisters
+        await saveHotkey("");
+      },
     },
   });
 }
@@ -313,6 +346,13 @@ async function main() {
       refreshLive(); // show the in-progress remainder (or clear)
     }
   });
+
+  // Re-register the saved global mute hotkey, if the user opted into one previously.
+  const savedHotkey = await getSavedHotkey().catch(() => "");
+  if (savedHotkey) {
+    const err = await applyHotkey(savedHotkey);
+    if (err) console.warn(`[hotkey] ${err}`); // taken now — user can re-set it in settings
+  }
 
   if (await hasApiKey()) {
     await startPipeline();

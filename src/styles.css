@@ -132,3 +132,14 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .settings-actions .ctl.save { color: #fff; background: rgba(91, 141, 239, .55); border-color: rgba(91, 141, 239, .7); }
 .settings-actions .ctl.save:hover { background: rgba(91, 141, 239, .75); }
+
+/* Opt-in global mute hotkey section. */
+.hotkey-sec { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .1); }
+.settings-subtitle { font-size: 13px; font-weight: 700; color: #eef1f6; margin-bottom: 5px; }
+.hotkey-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.hotkey-current { flex: 1; font-size: 13px; color: #cdd5e2;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; }
+.ctl.recording { color: #fff; background: rgba(91, 141, 239, .55); border-color: rgba(91, 141, 239, .7); }
+.hotkey-status { min-height: 16px; font-size: 12px; color: #9aa0a8; margin-top: 7px; }
+.hotkey-status.ok { color: #46d17f; }
+.hotkey-status.err { color: #ff8a8a; }

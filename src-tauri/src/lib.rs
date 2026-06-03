@@ -37,6 +37,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(state)
         .setup(|app| {
             // Load the persisted/dev/keyless key into the managed config.
@@ -65,6 +66,8 @@ pub fn run() {
             commands::has_api_key,
             commands::get_api_key,
             commands::set_api_key,
+            commands::get_hotkey,
+            commands::set_hotkey,
             commands::translate,
             commands::start_transcription,
             commands::push_audio,
