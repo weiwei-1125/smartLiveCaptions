@@ -67,8 +67,8 @@ export function openSettings(opts: OpenSettingsOpts): void {
     : "";
   el.innerHTML = `
     <div class="settings-card">
-      <div class="settings-title">设置 OpenAI API Key</div>
-      <div class="settings-hint">在 platform.openai.com 创建你自己的 key（以 sk- 开头）。<br>只保存在本机，不会上传，也不在软件里预置。</div>
+      <div class="settings-title">设置 Soniox API Key</div>
+      <div class="settings-hint">在 console.soniox.com 创建你自己的 key。<br>只保存在本机，不会上传，也不在软件里预置。</div>
       <div class="key-field">
         <input type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
         <button class="reveal" data-action="toggle-reveal" type="button" tabindex="-1" title="显示">${EYE}</button>

@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderOverlay, type OverlayChrome } from "./overlay";
 import { CaptionStore } from "../state/captionStore";
-import type { Mode } from "../types";
 
 let root: HTMLElement;
 beforeEach(() => {
@@ -10,26 +9,23 @@ beforeEach(() => {
 });
 
 function chrome(
-  mode: Mode = "zh2en",
-  level = "balanced",
   onTop = true,
   fontLevel = 1,
   statusKind: "ok" | "pending" | "error" = "ok",
 ): OverlayChrome {
-  return { statusText: "已连接", mode, level, onTop, fontLevel, statusKind };
+  return { statusText: "已连接", onTop, fontLevel, statusKind };
 }
 
 describe("renderOverlay", () => {
-  it("renders drag handle, mode, sensitivity segments, copy-all, clear, close", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en"));
+  it("renders drag handle, copy-all, clear, close (no mode/sensitivity controls)", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
     expect(root.querySelector("[data-drag]")).not.toBeNull();
-    expect(root.querySelectorAll("[data-action='set-level']").length).toBe(3); // 快/平衡/整句
     expect(root.querySelector("[data-action='copy-all']")).not.toBeNull();
     expect(root.querySelector("[data-action='clear']")).not.toBeNull();
     expect(root.querySelector("[data-action='close']")).not.toBeNull();
-    const btn = root.querySelector("[data-action='toggle-mode']");
-    expect(btn).not.toBeNull();
-    expect(btn!.textContent).toContain("中→英");
+    // mode toggle + sensitivity segments are gone (Soniox auto two-way + auto endpointing)
+    expect(root.querySelector("[data-action='toggle-mode']")).toBeNull();
+    expect(root.querySelector("[data-action='set-level']")).toBeNull();
   });
 
   it("renders a settings (gear) button", () => {
@@ -44,17 +40,17 @@ describe("renderOverlay", () => {
   });
 
   it("disables A− at the smallest level and A+ at the largest", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 0));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true, 0));
     expect((root.querySelector("[data-action='font-smaller']") as HTMLButtonElement).disabled).toBe(true);
     expect((root.querySelector("[data-action='font-bigger']") as HTMLButtonElement).disabled).toBe(false);
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 3));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true, 3));
     expect((root.querySelector("[data-action='font-bigger']") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("styles the status text by kind", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 1, "error"));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true, 1, "error"));
     expect(root.querySelector(".status.status-error")).not.toBeNull();
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true, 1, "ok"));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true, 1, "ok"));
     expect(root.querySelector(".status.status-ok")).not.toBeNull();
   });
 
@@ -63,14 +59,11 @@ describe("renderOverlay", () => {
       statusText: "连接失败",
       statusKind: "error",
       statusAction: "reconnect",
-      mode: "zh2en",
-      level: "balanced",
       onTop: true,
       fontLevel: 1,
     });
     expect(root.querySelector("button[data-action='reconnect']")).not.toBeNull();
     expect(root.querySelector(".status[data-action]")).toBeNull(); // the text is not the button
-    // no reconnect affordance when connected
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
     expect(root.querySelector("[data-action='reconnect']")).toBeNull();
   });
@@ -84,22 +77,10 @@ describe("renderOverlay", () => {
   });
 
   it("reflects always-on-top state on the pin button", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", true));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true));
     expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(true);
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "balanced", false));
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(false));
     expect(root.querySelector("[data-action='toggle-pin']")!.classList.contains("active")).toBe(false);
-  });
-
-  it("shows the en→zh direction when mode is en2zh", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("en2zh"));
-    expect(root.querySelector("[data-action='toggle-mode']")!.textContent).toContain("英→中");
-  });
-
-  it("highlights the active sensitivity segment", () => {
-    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome("zh2en", "full"));
-    const active = root.querySelector(".seg-item.active")!;
-    expect(active.getAttribute("data-level")).toBe("full");
-    expect(active.textContent).toBe("整句");
   });
 
   it("renders history oldest-first then the live current block last", () => {
@@ -130,11 +111,9 @@ describe("renderOverlay", () => {
     store.setTranslation(id, "Hello");
     store.setPartial("正在说", "zh"); // live line
     renderOverlay(root, store, chrome());
-    // committed block has an original-copy and a translation-copy button
     const committed = root.querySelector(".blk:not(.live)")!;
     expect(committed.querySelector("[data-action='copy'][data-field='orig']")).not.toBeNull();
     expect(committed.querySelector("[data-action='copy'][data-field='trans']")).not.toBeNull();
-    // the live line has no copy buttons
     const live = root.querySelector(".blk.live")!;
     expect(live.querySelector("[data-action='copy']")).toBeNull();
   });
@@ -143,7 +122,7 @@ describe("renderOverlay", () => {
     const store = new CaptionStore({ maxHistory: 5 });
     const id = store.commit("你好", "zh");
     renderOverlay(root, store, chrome());
-    expect(root.querySelector(".trans")).toBeNull(); // no translation yet
+    expect(root.querySelector(".trans")).toBeNull();
     store.setTranslation(id, "Hello");
     renderOverlay(root, store, chrome());
     expect(root.querySelector(".trans")!.textContent).toContain("Hello");

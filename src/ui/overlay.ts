@@ -1,5 +1,5 @@
 import type { CaptionStore } from "../state/captionStore";
-import type { Utterance, Mode } from "../types";
+import type { Utterance } from "../types";
 import { FONT_SCALES } from "../config/fontScales";
 
 function escapeHtml(s: string): string {
@@ -29,27 +29,14 @@ function blockHtml(u: Utterance, live: boolean): string {
   return `<div class="blk${live ? " live" : ""}">${origLine}${transLine}</div>`;
 }
 
-function modeLabel(mode: Mode): string {
-  return mode === "zh2en" ? "中→英" : "英→中";
-}
-
 const ICON_CLOSE =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
-
-// Sensitivity presets shown as a segmented control (current one highlighted).
-const LEVEL_SEGMENTS: Array<{ key: string; label: string }> = [
-  { key: "fast", label: "快" },
-  { key: "balanced", label: "平衡" },
-  { key: "full", label: "整句" },
-];
 
 export interface OverlayChrome {
   statusText: string;
   statusKind: "ok" | "pending" | "error"; // calm when ok, amber when pending, red when error
   statusDetail?: string; // full message for hover (e.g. the error text)
   statusAction?: "reconnect"; // when set, the status becomes a clickable retry button
-  mode: Mode;
-  level: string; // active sensitivity key: "fast" | "balanced" | "full"
   onTop: boolean; // window is always-on-top (pinned)
   fontLevel: number; // index into FONT_SCALES (for disabling A−/A+ at the ends)
 }
@@ -62,10 +49,8 @@ const ICON_MIN =
 const ICON_MAX =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>';
 
-// Action-button glyphs (same monochrome Feather language). Swap arrows for mode, a
-// lined clipboard for copy-all, a trash can for clear, a gear for settings.
-const ICON_SWAP =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+// Action-button glyphs (same monochrome Feather language): lined clipboard for copy-all,
+// a trash can for clear, a gear for settings, circular arrows for reconnect.
 const ICON_COPY_ALL =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>';
 const ICON_CLEAR =
@@ -92,11 +77,8 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   if (store.current) blocks.push(blockHtml(store.current, true));
 
   // Icon-forward top bar. The ⠿ handle (data-drag) is the only drag region; the
-  // buttons are siblings so they stay clickable. (Mic lives in a floating FAB, not here.)
-  const modeBtn = `<button class="ctl mode" data-action="toggle-mode" title="切换翻译方向（中 ↔ 英）">${ICON_SWAP}<span>${modeLabel(chrome.mode)}</span></button>`;
-  const seg = `<div class="seg" title="灵敏度：快=最跟手出字 / 整句=最完整不切碎">${LEVEL_SEGMENTS.map(
-    (s) => `<button class="seg-item${s.key === chrome.level ? " active" : ""}" data-action="set-level" data-level="${s.key}">${s.label}</button>`,
-  ).join("")}</div>`;
+  // buttons are siblings so they stay clickable. (Mic lives in a floating FAB; translation
+  // direction is automatic via Soniox two-way, so there's no mode/sensitivity control.)
   const copyAllBtn = `<button class="ctl iconbtn" data-action="copy-all" title="复制全部对话（中英）">${ICON_COPY_ALL}</button>`;
   const clearBtn = `<button class="ctl iconbtn clear" data-action="clear" title="清除字幕">${ICON_CLEAR}</button>`;
   const settingsBtn = `<button class="ctl iconbtn" data-action="open-settings" title="设置">${ICON_SETTINGS}</button>`;
@@ -124,7 +106,7 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
       : "";
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${status}${refreshBtn}</span>
-    ${seg}${fontCtl}${modeBtn}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
+    ${fontCtl}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

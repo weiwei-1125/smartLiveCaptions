@@ -38,6 +38,26 @@ export class CaptionStore {
     this.emit();
   }
 
+  /** Set the live (in-progress) line with BOTH original and translation — used by the
+   * streaming Soniox pipeline, where each grows token-by-token until the sentence commits. */
+  setLive(source: string, translation: string, lang: "zh" | "en"): void {
+    if (source === "" && translation === "") {
+      if (this.current) {
+        this.current = null;
+        this.emit();
+      }
+      return;
+    }
+    if (!this.current) {
+      this.current = { id: this.nextId++, source, translation, sourceLang: lang, done: false };
+    } else {
+      this.current.source = source;
+      this.current.translation = translation;
+      this.current.sourceLang = lang;
+    }
+    this.emit();
+  }
+
   /** Append a finished sentence directly to history, independent of the live `current`
    * line. Returns its id so the async translation can be attached via setTranslation. */
   addFinal(text: string, lang: "zh" | "en"): number {
