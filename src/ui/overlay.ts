@@ -1,6 +1,7 @@
 import type { CaptionStore } from "../state/captionStore";
 import type { Utterance } from "../types";
 import { FONT_SCALES } from "../config/fontScales";
+import { PACE_SEGMENTS, type Pace } from "../config/pace";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
@@ -39,6 +40,7 @@ export interface OverlayChrome {
   statusAction?: "reconnect"; // when set, the status becomes a clickable retry button
   onTop: boolean; // window is always-on-top (pinned)
   fontLevel: number; // index into FONT_SCALES (for disabling A−/A+ at the ends)
+  pace: Pace; // "断句节奏" — which sentence-segmentation speed is active
 }
 
 // Monochrome window-control glyphs (inherit currentColor, same language as the copy/eye icons).
@@ -82,6 +84,11 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   const copyAllBtn = `<button class="ctl iconbtn" data-action="copy-all" title="复制全部对话（中英）">${ICON_COPY_ALL}</button>`;
   const clearBtn = `<button class="ctl iconbtn clear" data-action="clear" title="清除字幕">${ICON_CLEAR}</button>`;
   const settingsBtn = `<button class="ctl iconbtn" data-action="open-settings" title="设置">${ICON_SETTINGS}</button>`;
+  // "断句节奏" — how eagerly Soniox closes a sentence (max_endpoint_delay_ms). Remembered.
+  const paceCtl = `<span class="seg" title="断句节奏">${PACE_SEGMENTS.map(
+    (s) =>
+      `<button class="seg-item${chrome.pace === s.pace ? " active" : ""}" data-action="set-pace" data-pace="${s.pace}" title="${s.title}">${s.label}</button>`,
+  ).join("")}</span>`;
   // Caption font-size stepper (scales original + translation together; choice is remembered).
   const fontCtl = `<span class="fontctl" title="字幕字号">
     <button class="font-btn" data-action="font-smaller" title="缩小字号"${chrome.fontLevel <= 0 ? " disabled" : ""}>A−</button>
@@ -106,7 +113,7 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
       : "";
   const topbar = `<div class="topbar">
     <span class="drag" data-drag>⠿ ${status}${refreshBtn}</span>
-    ${fontCtl}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
+    ${paceCtl}${fontCtl}${copyAllBtn}${clearBtn}${settingsBtn}${winctl}
   </div>`;
 
   root.innerHTML = `<div class="bar">${topbar}<div class="captions">${blocks.join("")}</div></div>`;

@@ -14,8 +14,10 @@ export interface SonioxResult {
   finished?: boolean;
 }
 
-export async function startTranscription(): Promise<void> {
-  await invoke("start_transcription");
+/** Start streaming. `endpointDelayMs` = max wait (ms) after speech ends before a sentence
+ * boundary — the user's "断句节奏" choice (lower = snappier, higher = fuller sentences). */
+export async function startTranscription(endpointDelayMs: number): Promise<void> {
+  await invoke("start_transcription", { endpointDelayMs });
 }
 
 export async function stopTranscription(): Promise<void> {

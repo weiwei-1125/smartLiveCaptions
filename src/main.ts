@@ -20,6 +20,7 @@ import { getSavedHotkey, saveHotkey, registerMuteHotkey, unregisterHotkey } from
 import { detectLang } from "./config/modes";
 import { toSimplified } from "./config/simplify";
 import { FONT_SCALES, DEFAULT_FONT_LEVEL } from "./config/fontScales";
+import { PACE_DELAY_MS, clampPace, type Pace } from "./config/pace";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const root = document.getElementById("app")!;
@@ -48,6 +49,17 @@ function setFontLevel(delta: number) {
   render();
 }
 
+// "断句节奏": how eagerly Soniox closes a sentence. Remembered across launches; changing it
+// reconnects the Soniox session with the new max_endpoint_delay_ms (quick).
+let pace: Pace = clampPace(localStorage.getItem("capPace"));
+function setPace(next: Pace) {
+  if (next === pace) return;
+  pace = next;
+  localStorage.setItem("capPace", pace);
+  render();
+  if (started) void restartConnection();
+}
+
 // Topbar status: calm when ok, amber while connecting, red on error (detail shown on hover).
 let connText = "启动中…";
 let connKind: "ok" | "pending" | "error" = "pending";
@@ -68,6 +80,7 @@ function render() {
     statusAction: connAction,
     onTop,
     fontLevel,
+    pace,
   });
 }
 store.subscribe(render);
@@ -233,6 +246,11 @@ root.addEventListener("mousedown", (e) => {
     void showSettings(false);
     return;
   }
+  const paceEl = target.closest("[data-action='set-pace']") as HTMLElement | null;
+  if (paceEl) {
+    setPace(clampPace(paceEl.dataset.pace ?? null));
+    return;
+  }
   if (target.closest("[data-action='font-smaller']")) {
     setFontLevel(-1);
     return;
@@ -253,7 +271,7 @@ let started = false;
 async function startPipeline() {
   setStatus("连接中…", "pending");
   render();
-  await startTranscription();
+  await startTranscription(PACE_DELAY_MS[pace]);
   started = true;
   render();
   await capture.start(onFrame);
@@ -267,7 +285,7 @@ async function restartConnection() {
   try {
     await stopTranscription();
     resetCaptions();
-    await startTranscription();
+    await startTranscription(PACE_DELAY_MS[pace]);
   } catch (e) {
     setStatus("连接失败", "error", String(e), "reconnect");
   }
@@ -300,7 +318,7 @@ async function doReconnect() {
   try {
     await stopTranscription();
     resetCaptions();
-    await startTranscription();
+    await startTranscription(PACE_DELAY_MS[pace]);
   } catch (e) {
     connDetail = String(e);
     scheduleReconnect();

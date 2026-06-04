@@ -82,6 +82,7 @@ pub fn set_hotkey(app: tauri::AppHandle, state: State<AppState>, hotkey: String)
 pub async fn start_transcription(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    endpoint_delay_ms: u32,
 ) -> Result<(), String> {
     // This start supersedes any previous session.
     let my_gen = state.gen.fetch_add(1, Ordering::SeqCst) + 1;
@@ -94,7 +95,7 @@ pub async fn start_transcription(
     let app2 = app.clone();
     let app_err = app.clone();
     tokio::spawn(async move {
-        let result = soniox::connect(api_key, rx, move |ev| {
+        let result = soniox::connect(api_key, endpoint_delay_ms, rx, move |ev| {
             if gen_emit.load(Ordering::SeqCst) != my_gen {
                 return; // drop events from a superseded session
             }

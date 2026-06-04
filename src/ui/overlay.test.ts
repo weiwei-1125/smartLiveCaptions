@@ -13,7 +13,7 @@ function chrome(
   fontLevel = 1,
   statusKind: "ok" | "pending" | "error" = "ok",
 ): OverlayChrome {
-  return { statusText: "已连接", onTop, fontLevel, statusKind };
+  return { statusText: "已连接", onTop, fontLevel, statusKind, pace: "balanced" };
 }
 
 describe("renderOverlay", () => {
@@ -39,6 +39,14 @@ describe("renderOverlay", () => {
     expect(root.querySelector("[data-action='font-bigger']")).not.toBeNull();
   });
 
+  it("renders the 断句节奏 (pace) segmented control with the active pace marked", () => {
+    renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome());
+    const segs = root.querySelectorAll("[data-action='set-pace']");
+    expect(segs.length).toBe(3);
+    const active = root.querySelector("[data-action='set-pace'].active") as HTMLElement;
+    expect(active.dataset.pace).toBe("balanced"); // chrome() default
+  });
+
   it("disables A− at the smallest level and A+ at the largest", () => {
     renderOverlay(root, new CaptionStore({ maxHistory: 5 }), chrome(true, 0));
     expect((root.querySelector("[data-action='font-smaller']") as HTMLButtonElement).disabled).toBe(true);
@@ -61,6 +69,7 @@ describe("renderOverlay", () => {
       statusAction: "reconnect",
       onTop: true,
       fontLevel: 1,
+      pace: "balanced",
     });
     expect(root.querySelector("button[data-action='reconnect']")).not.toBeNull();
     expect(root.querySelector(".status[data-action]")).toBeNull(); // the text is not the button
