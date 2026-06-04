@@ -1,4 +1,4 @@
-// A small modal for entering the user's own OpenAI API key (and the optional global
+// A small modal for entering the user's own Soniox API key (and the optional global
 // mute hotkey). Appended to <body> (outside #app) so it survives the overlay's frequent
 // innerHTML re-renders — the input keeps focus/text while captions stream underneath.
 

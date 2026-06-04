@@ -1,5 +1,4 @@
 {
-  "openai_api_key": "sk-REPLACE_ME",
-  "translation_model": "gpt-4.1-nano",
-  "transcription_model": "gpt-4o-transcribe"
+  "soniox_api_key": "REPLACE_ME",
+  "mute_hotkey": ""
 }

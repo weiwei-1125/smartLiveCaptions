@@ -7,8 +7,8 @@ export class AudioCapture {
 
   async start(onFrame: FrameHandler): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
-    // GA Realtime transcription requires input PCM rate >= 24000; capture must
-    // match the rate declared in the session.update (see openai/transcription.rs).
+    // Capture at 24 kHz to match the rate declared in the Soniox session config
+    // (sample_rate: 24000 in soniox.rs); the raw PCM16 frames stream straight up.
     this.ctx = new AudioContext({ sampleRate: 24000 });
     const src = this.ctx.createMediaStreamSource(this.stream);
     this.node = this.ctx.createScriptProcessor(2048, 1, 1);
