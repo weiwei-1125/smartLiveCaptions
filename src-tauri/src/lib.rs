@@ -1,5 +1,5 @@
 pub mod config;
-mod openai;
+mod soniox;
 mod commands;
 
 use commands::AppState;
@@ -15,7 +15,7 @@ use tauri::Manager;
 fn load_startup_config(app: &tauri::App) -> config::AppConfig {
     if let Ok(dir) = app.path().app_config_dir() {
         if let Ok(cfg) = config::load_from_file(&dir.join("config.json")) {
-            if !cfg.openai_api_key.trim().is_empty() {
+            if !cfg.soniox_api_key.trim().is_empty() {
                 return cfg;
             }
         }
@@ -30,7 +30,6 @@ fn load_startup_config(app: &tauri::App) -> config::AppConfig {
 pub fn run() {
     let state = AppState {
         config: RwLock::new(config::AppConfig::keyless()),
-        http: reqwest::Client::new(),
         audio_tx: Mutex::new(None),
         gen: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
     };
@@ -68,7 +67,6 @@ pub fn run() {
             commands::set_api_key,
             commands::get_hotkey,
             commands::set_hotkey,
-            commands::translate,
             commands::start_transcription,
             commands::push_audio,
             commands::stop_transcription
