@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- macOS-only: Tauri merges this into the generated app Info.plist on macOS builds.
+     NSMicrophoneUsageDescription is REQUIRED, or macOS silently blocks mic capture. -->
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>smartLiveCaptions uses your microphone to transcribe speech into live captions.</string>
+</dict>
+</plist>
