@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soniox 流式验证</title>
+    <style>
+      body { margin: 0; background: #0f1014; color: #eef1f6;
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+      .panel { max-width: 920px; margin: 28px auto; padding: 0 20px; }
+      h1 { font-size: 16px; font-weight: 700; color: #cdd5e2; margin: 0 0 4px; }
+      .sub { font-size: 12px; color: #6a6f78; margin-bottom: 18px; }
+      .row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+      button { font-size: 15px; padding: 8px 18px; border-radius: 10px; cursor: pointer;
+        border: 1px solid rgba(91,141,239,.5); background: rgba(91,141,239,.32); color: #fff; }
+      button:hover { background: rgba(91,141,239,.5); }
+      #status { font-size: 14px; color: #9aa0a8; }
+      #status.ok { color: #46d17f; } #status.pending { color: #e6b84d; } #status.err { color: #ff8f8f; }
+      .block { margin-bottom: 16px; }
+      .label { font-size: 12px; color: #8a8f99; margin-bottom: 6px; }
+      .text { min-height: 52px; font-size: 22px; line-height: 1.5; padding: 14px 16px;
+        border-radius: 10px; background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.1); white-space: pre-wrap; word-break: break-word; }
+      #trans .text { border-left: 3px solid #5b8def; }
+      .pending { color: #8a8f99; } /* live, still-revisable tail = grey; locked text = white */
+      .hint { font-size: 12px; color: #6a6f78; margin-top: 14px; line-height: 1.6; }
+      code { color: #9fd0ff; }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Soniox 流式语音识别 · 验证页（dev）</h1>
+      <div class="sub">边说边出 + 实时修正成句 + 自动中↔英翻译。灰色 = 临时（会变），白色 = 定稿。</div>
+      <div class="row">
+        <button id="toggle">▶ 开始</button>
+        <span id="status">就绪</span>
+      </div>
+      <div class="block"><div class="label">原文（识别）</div><div id="orig" class="text"></div></div>
+      <div class="block" id="trans"><div class="label">译文（自动 中↔英）</div><div id="transText" class="text"></div></div>
+      <div class="hint">
+        说一段试试（中文或英文均可，可以一口气连说）。观察：① 文字是否<b>边说边出</b>；
+        ② 已出现的词是否随后续<b>修正合并成句并加标点</b>；③ 译文是否实时跟上。<br>
+        若状态显示红色错误（比如模型名/格式不对），把错误内容告诉我，我即刻调整。
+      </div>
+    </div>
+    <script type="module" src="/src/preview/soniox-test.ts"></script>
+  </body>
+</html>
