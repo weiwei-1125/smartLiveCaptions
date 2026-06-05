@@ -26,6 +26,31 @@ fn load_startup_config(app: &tauri::App) -> config::AppConfig {
     config::AppConfig::keyless()
 }
 
+// Overlay's intended LOGICAL window size — keep in sync with tauri.conf.json (app.windows[0]).
+const OVERLAY_W: f64 = 780.0;
+const OVERLAY_H: f64 = 460.0;
+
+/// Size the overlay to its intended LOGICAL size, then dock it bottom-center above the taskbar
+/// of the primary monitor. Setting a LOGICAL size (not physical) is what makes this correct on
+/// a mixed-DPI multi-monitor setup: Windows preserves a window's *logical* size across a
+/// cross-DPI move, so 780x460 logical lands at the right physical size on the primary no matter
+/// which monitor's scale the window was born in. (Setting a physical size computed for one
+/// monitor is the bug — it gets rescaled by the DPI ratio when the window moves.)
+fn place_overlay<R: tauri::Runtime>(win: &tauri::WebviewWindow<R>) {
+    if let Ok(Some(monitor)) = win.primary_monitor() {
+        let scale = monitor.scale_factor(); // primary's scale, used only to place the window
+        let work = monitor.work_area();
+        let _ = win.set_size(tauri::LogicalSize::new(OVERLAY_W, OVERLAY_H));
+        // Position uses the size the window WILL have at the primary's scale.
+        let pw = (OVERLAY_W * scale).round() as i32;
+        let ph = (OVERLAY_H * scale).round() as i32;
+        let margin = (12.0 * scale).round() as i32; // gap above taskbar
+        let x = work.position.x + ((work.size.width as i32 - pw) / 2).max(0);
+        let y = (work.position.y + work.size.height as i32 - ph - margin).max(work.position.y);
+        let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let state = AppState {
@@ -45,19 +70,44 @@ pub fn run() {
                 *guard = cfg;
             }
 
-            // Dock the overlay near the bottom-center of the primary monitor on launch.
-            // work_area() excludes the taskbar (unlike monitor.size()/position()).
+            // Size + dock the overlay on the primary monitor. On a mixed-DPI multi-monitor setup,
+            // a window launched from a shortcut on a different-scale monitor is born in that
+            // monitor's DPI; place_overlay sets a LOGICAL size, which Windows preserves across the
+            // cross-DPI move so it lands correctly on the primary. The event handler re-asserts the
+            // logical size if it still drifts as the window settles (Resized/Moved/ScaleFactorChanged
+            // fire unpredictably during the move); checking logical size works at any scale. Capped,
+            // and stops once correct, so it never fights the user resizing the window later.
             if let Some(win) = app.get_webview_window("main") {
-                if let Ok(Some(monitor)) = win.primary_monitor() {
-                    let work = monitor.work_area();
-                    let wsize = win.outer_size().unwrap_or(work.size);
-                    let scale = win.scale_factor().unwrap_or(1.0);
-                    let margin = (12.0 * scale).round() as i32; // gap above taskbar
-                    let x = work.position.x + ((work.size.width as i32 - wsize.width as i32) / 2).max(0);
-                    let y = (work.position.y + work.size.height as i32 - wsize.height as i32 - margin)
-                        .max(work.position.y); // never clip above the work area on small screens
-                    let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
-                }
+                place_overlay(&win);
+                let win2 = win.clone();
+                let done = std::sync::atomic::AtomicBool::new(false);
+                let tries = std::sync::atomic::AtomicU32::new(0);
+                win.on_window_event(move |ev| {
+                    use std::sync::atomic::Ordering::SeqCst;
+                    if done.load(SeqCst) {
+                        return;
+                    }
+                    if !matches!(
+                        ev,
+                        tauri::WindowEvent::Resized(_)
+                            | tauri::WindowEvent::Moved(_)
+                            | tauri::WindowEvent::ScaleFactorChanged { .. }
+                    ) {
+                        return;
+                    }
+                    let scale = win2.scale_factor().unwrap_or(1.0);
+                    if let Ok(cur) = win2.inner_size() {
+                        let lw = cur.width as f64 / scale;
+                        let lh = cur.height as f64 / scale;
+                        if (lw - OVERLAY_W).abs() <= 2.0 && (lh - OVERLAY_H).abs() <= 2.0 {
+                            done.store(true, SeqCst);
+                        } else if tries.fetch_add(1, SeqCst) < 8 {
+                            place_overlay(&win2);
+                        } else {
+                            done.store(true, SeqCst);
+                        }
+                    }
+                });
             }
             Ok(())
         })
