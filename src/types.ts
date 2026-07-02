@@ -11,6 +11,7 @@ export interface Utterance {
   id: number;
   source: string;       // original transcript
   translation: string;  // translated text ("" until translated)
+  polish?: string;      // optional colloquial-English rewrite (streams in after commit)
   sourceLang: "zh" | "en";
   done: boolean;        // true once the sentence is final
 }

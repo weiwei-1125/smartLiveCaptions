@@ -8,6 +8,25 @@ pub struct AppConfig {
     /// Empty = no global hotkey registered (the default — nothing is grabbed system-wide).
     #[serde(default)]
     pub mute_hotkey: String,
+    /// The user's own OpenAI API key for the optional colloquial-English polish line.
+    /// Empty = polish feature off (the default). Never bundled, same as the Soniox key.
+    #[serde(default)]
+    pub openai_api_key: String,
+    /// OpenAI-compatible endpoint + model for the polish step. Only the key is exposed in
+    /// the settings UI; power users can hand-edit these in config.json to point at any
+    /// OpenAI-compatible provider (Groq, DeepSeek, ...).
+    #[serde(default = "default_llm_base_url")]
+    pub llm_base_url: String,
+    #[serde(default = "default_llm_model")]
+    pub llm_model: String,
+}
+
+pub fn default_llm_base_url() -> String {
+    "https://api.openai.com/v1".to_string()
+}
+
+pub fn default_llm_model() -> String {
+    "gpt-5.4-nano".to_string()
 }
 
 impl AppConfig {
@@ -17,6 +36,9 @@ impl AppConfig {
         AppConfig {
             soniox_api_key: String::new(),
             mute_hotkey: String::new(),
+            openai_api_key: String::new(),
+            llm_base_url: default_llm_base_url(),
+            llm_model: default_llm_model(),
         }
     }
 }
@@ -57,6 +79,9 @@ mod tests {
         let cfg = parse_config(r#"{"soniox_api_key":"sk-test"}"#).unwrap();
         assert_eq!(cfg.soniox_api_key, "sk-test");
         assert_eq!(cfg.mute_hotkey, ""); // defaulted
+        assert_eq!(cfg.openai_api_key, ""); // defaulted → polish off
+        assert_eq!(cfg.llm_base_url, "https://api.openai.com/v1"); // defaulted
+        assert_eq!(cfg.llm_model, "gpt-5.4-nano"); // defaulted
     }
 
     #[test]
@@ -71,11 +96,14 @@ mod tests {
         let cfg = AppConfig {
             soniox_api_key: "sk-roundtrip".into(),
             mute_hotkey: "Pause".into(),
+            openai_api_key: "sk-llm".into(),
+            ..AppConfig::keyless()
         };
         save_to_file(&path, &cfg).unwrap();
         let loaded = load_from_file(&path).unwrap();
         assert_eq!(loaded.soniox_api_key, "sk-roundtrip");
         assert_eq!(loaded.mute_hotkey, "Pause");
+        assert_eq!(loaded.openai_api_key, "sk-llm");
         let _ = std::fs::remove_file(&path);
     }
 
@@ -92,7 +120,7 @@ mod tests {
         let path = std::env::temp_dir().join("slc_load_or_default_existing.json");
         let cfg = AppConfig {
             soniox_api_key: "sk-existing".into(),
-            mute_hotkey: String::new(),
+            ..AppConfig::keyless()
         };
         save_to_file(&path, &cfg).unwrap();
         let loaded = load_or_default(&path);

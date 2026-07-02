@@ -1,5 +1,6 @@
 pub mod config;
 mod soniox;
+mod polish;
 mod commands;
 
 use commands::AppState;
@@ -57,6 +58,14 @@ pub fn run() {
         config: RwLock::new(config::AppConfig::keyless()),
         audio_tx: Mutex::new(None),
         gen: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        polish_gen: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        // Bounded timeouts so a black-holed connection (sleep/wake, VPN drop) fails into
+        // polish_error instead of leaking a task per sentence; a rewrite finishes in ~2s.
+        http: reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap_or_default(),
     };
 
     tauri::Builder::default()
@@ -115,11 +124,16 @@ pub fn run() {
             commands::has_api_key,
             commands::get_api_key,
             commands::set_api_key,
+            commands::has_llm_key,
+            commands::get_llm_key,
+            commands::set_llm_key,
+            commands::begin_polish_session,
             commands::get_hotkey,
             commands::set_hotkey,
             commands::start_transcription,
             commands::push_audio,
-            commands::stop_transcription
+            commands::stop_transcription,
+            commands::polish_sentence
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

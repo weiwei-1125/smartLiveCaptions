@@ -97,6 +97,11 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .orig.zh { color: #9fd0ff; } .orig.en { color: #a9e8c0; }
 .trans { position: relative; margin-top: 5px; padding: 7px 10px; font-size: calc(18px * var(--cap-scale, 1));
   color: #eef1f6; line-height: 1.45; background: rgba(255, 255, 255, .07); border-left: 3px solid #5b8def; border-radius: 6px; }
+/* Colloquial spoken-English rewrite (LLM polish) — third line, warm gold + italic so it
+   reads as "how you'd actually say it" next to the literal translation above. */
+.polish { position: relative; margin-top: 4px; padding: 7px 10px; font-size: calc(17px * var(--cap-scale, 1));
+  color: #f0d9a0; font-style: italic; line-height: 1.45; background: rgba(240, 200, 120, .08);
+  border-left: 3px solid #d9a94d; border-radius: 6px; }
 .cursor { display: inline-block; width: 2px; height: 16px; background: #9fd0ff;
   margin-left: 3px; vertical-align: -2px; animation: blink .8s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }

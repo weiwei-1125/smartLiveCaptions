@@ -16,6 +16,15 @@ import {
   type SonioxResult,
 } from "./services/transcription";
 import { hasApiKey, getApiKey, setApiKey } from "./services/settings";
+import {
+  hasLlmKey,
+  getLlmKey,
+  setLlmKey,
+  beginPolishSession,
+  polishSentence,
+  onPolishDelta,
+  onPolishError,
+} from "./services/polish";
 import { getSavedHotkey, saveHotkey, registerMuteHotkey, unregisterHotkey } from "./services/hotkey";
 import { detectLang } from "./config/modes";
 import { toSimplified } from "./config/simplify";
@@ -125,6 +134,9 @@ async function toggleMic() {
 // the sentence boundary → commit it to history and start the next.
 let curOrig = "";
 let curTrans = "";
+// Colloquial-English polish: on when the user has configured an OpenAI key in settings.
+let polishOn = false;
+let polishErrToasted = false; // one visible toast per session; re-armed when settings change
 function resetCaptions() {
   curOrig = "";
   curTrans = "";
@@ -154,8 +166,19 @@ function handleSonioxResult(msg: SonioxResult) {
   store.setLive(liveOrig, liveTrans, detectLang(liveOrig || "zh"));
   if (commitNow) {
     const orig = curOrig.trim();
-    if (orig) store.commit(orig, detectLang(orig)); // keeps the translation set by setLive
-    else store.current = null;
+    if (orig) {
+      const lang = detectLang(orig);
+      const id = store.commit(orig, lang); // keeps the translation set by setLive
+      // Colloquial rewrite for zh→en only (the user's own language needs no polish); the
+      // literal translation stays — the rewrite streams in as a third line under it.
+      // Also require the draft to actually be English: a mostly-English sentence quoting one
+      // Chinese word makes detectLang say "zh" while Soniox translated INTO Chinese.
+      if (polishOn && lang === "zh" && liveTrans && detectLang(liveTrans) === "en") {
+        void polishSentence(id, orig, liveTrans);
+      }
+    } else {
+      store.current = null;
+    }
     curOrig = "";
     curTrans = "";
   }
@@ -183,16 +206,16 @@ async function writeClipboard(text: string) {
     showToast("复制失败");
   }
 }
-function copyLine(id: number, field: "orig" | "trans") {
+function copyLine(id: number, field: "orig" | "trans" | "polish") {
   const u = store.history.find((x) => x.id === id);
   if (!u) return;
-  const text = field === "orig" ? u.source : u.translation;
+  const text = field === "orig" ? u.source : field === "trans" ? u.translation : u.polish;
   if (text) void writeClipboard(text);
 }
 function copyAll() {
   const text = [...store.history]
     .reverse()
-    .map((u) => (u.translation ? `${u.source}\n${u.translation}` : u.source))
+    .map((u) => [u.source, u.translation, u.polish].filter(Boolean).join("\n"))
     .join("\n\n");
   if (text) void writeClipboard(text);
   else showToast("没有可复制的字幕");
@@ -204,7 +227,8 @@ root.addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
   const copyEl = target.closest("[data-action='copy']") as HTMLElement | null;
   if (copyEl) {
-    copyLine(Number(copyEl.dataset.id), copyEl.dataset.field === "trans" ? "trans" : "orig");
+    const f = copyEl.dataset.field;
+    copyLine(Number(copyEl.dataset.id), f === "trans" ? "trans" : f === "polish" ? "polish" : "orig");
     return;
   }
   if (target.closest("[data-action='copy-all']")) {
@@ -377,14 +401,21 @@ async function applyHotkey(accel: string): Promise<string | null> {
 // key yet → can't be dismissed.
 async function showSettings(firstRun: boolean) {
   const currentKey = firstRun ? "" : await getApiKey().catch(() => "");
+  const currentLlmKey = await getLlmKey().catch(() => "");
   const savedHotkey = await getSavedHotkey().catch(() => "");
   openSettings({
     dismissable: !firstRun,
     currentKey,
-    onSave: async (key) => {
+    currentLlmKey,
+    onSave: async (key, llmKey) => {
       await setApiKey(key); // persist the Soniox key + apply live
+      await setLlmKey(llmKey); // persist the polish key ("" = feature off)
+      polishOn = llmKey.trim() !== "";
+      polishErrToasted = false; // a corrected key re-arms the failure toast
+      // Only reconnect when the Soniox key actually changed — adding/editing just the
+      // polish key must not drop the in-progress sentence.
       if (!started) await startPipeline();
-      else await restartConnection();
+      else if (key !== currentKey) await restartConnection();
       closeSettings();
     },
     hotkey: {
@@ -420,6 +451,22 @@ async function main() {
   });
 
   await onSonioxResult(handleSonioxResult);
+
+  // Colloquial-polish stream → append to the committed block (unknown ids are ignored).
+  // Claim this webview as the active polish session BEFORE anything can commit, so streams
+  // from a pre-reload webview can't attach to reused caption ids.
+  await beginPolishSession().catch(() => {});
+  await onPolishDelta((p) => store.appendPolish(p.id, p.text));
+  // Errors must be user-visible: packaged builds have no console, and a wrong/expired key
+  // would otherwise make the feature silently dead. Toast once, not per sentence.
+  await onPolishError((p) => {
+    console.warn(`[polish] #${p.id}: ${p.msg}`);
+    if (!polishErrToasted) {
+      polishErrToasted = true;
+      showToast("口语润色失败，请检查 OpenAI Key");
+    }
+  });
+  polishOn = await hasLlmKey().catch(() => false);
 
   // Reconnect-on-resume after the machine wakes from sleep.
   window.addEventListener("focus", ensureConnected);

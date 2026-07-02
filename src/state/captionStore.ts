@@ -86,6 +86,16 @@ export class CaptionStore {
     return u.id;
   }
 
+  /** Append a streamed chunk of the colloquial-English polish line to a committed block.
+   * Unknown ids (e.g. cleared history or a superseded session) are silently ignored. */
+  appendPolish(id: number, delta: string): void {
+    const u = this.history.find((x) => x.id === id);
+    if (u) {
+      u.polish = (u.polish ?? "") + delta;
+      this.emit();
+    }
+  }
+
   setTranslation(id: number, translation: string): void {
     const u = this.history.find((x) => x.id === id) ?? (this.current?.id === id ? this.current : null);
     if (u) {

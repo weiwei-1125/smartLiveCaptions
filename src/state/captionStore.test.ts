@@ -71,4 +71,23 @@ describe("CaptionStore", () => {
     s.setPartial("", "zh");
     expect(s.current).toBeNull();
   });
+
+  it("appendPolish accumulates streamed chunks on a committed block and notifies", () => {
+    const s = new CaptionStore({ maxHistory: 3 });
+    const id = s.commit("你好", "zh");
+    const cb = vi.fn();
+    s.subscribe(cb);
+    s.appendPolish(id, "Hey");
+    s.appendPolish(id, " there!");
+    expect(s.history[0].polish).toBe("Hey there!");
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("appendPolish ignores unknown ids (cleared history / stale events)", () => {
+    const s = new CaptionStore({ maxHistory: 3 });
+    const cb = vi.fn();
+    s.subscribe(cb);
+    s.appendPolish(999, "stale");
+    expect(cb).not.toHaveBeenCalled();
+  });
 });

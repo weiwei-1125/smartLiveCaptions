@@ -29,6 +29,8 @@ function sampleStore(mode: Mode): CaptionStore {
       const id = s.commit(zh, "zh");
       s.setTranslation(id, en);
     }
+    // Showcase the optional LLM colloquial-English line on the newest committed block.
+    s.appendPolish(s.history[0].id, "Let's just move it to next Wednesday — this plan feels a bit risky.");
     s.commit("Hello there.", "en"); // English in practice mode → passthrough, no translation
     s.setPartial("今天天气真不错", "zh"); // live, streaming (blue + cursor)
   } else {

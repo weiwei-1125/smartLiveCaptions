@@ -137,6 +137,19 @@ describe("renderOverlay", () => {
     expect(root.querySelector(".trans")!.textContent).toContain("Hello");
   });
 
+  it("renders the colloquial polish line (with copy) only when present", () => {
+    const store = new CaptionStore({ maxHistory: 5 });
+    const id = store.commit("我想确认一下", "zh");
+    store.setTranslation(id, "I want to confirm it.");
+    renderOverlay(root, store, chrome());
+    expect(root.querySelector(".polish")).toBeNull(); // nothing streamed yet
+    store.appendPolish(id, "Just want to double-check.");
+    renderOverlay(root, store, chrome());
+    const polish = root.querySelector(".polish")!;
+    expect(polish.textContent).toContain("Just want to double-check.");
+    expect(polish.querySelector("[data-action='copy'][data-field='polish']")).not.toBeNull();
+  });
+
   it("HTML-escapes transcript and translation text", () => {
     const store = new CaptionStore({ maxHistory: 5 });
     const id = store.commit("<script>", "en");

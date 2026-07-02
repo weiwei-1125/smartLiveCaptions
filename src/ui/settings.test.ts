@@ -74,6 +74,30 @@ describe("settings modal", () => {
     expect(input.value).toBe("sk-current");
   });
 
+  it("renders the optional llm-key field, prefills it, and passes it to onSave", () => {
+    const saved: Array<[string, string]> = [];
+    openSettings({
+      onSave: (k, llm) => { saved.push([k, llm]); },
+      dismissable: true,
+      currentKey: "soniox-key",
+      currentLlmKey: "sk-openai",
+    });
+    const llmInput = document.querySelector("input[data-llm-key]") as HTMLInputElement;
+    expect(llmInput).not.toBeNull();
+    expect(llmInput.value).toBe("sk-openai");
+    (document.querySelector("[data-action='save-key']") as HTMLElement).click();
+    expect(saved).toEqual([["soniox-key", "sk-openai"]]);
+  });
+
+  it("saves with an empty llm key (polish off) — only the Soniox key is required", () => {
+    const saved: Array<[string, string]> = [];
+    openSettings({ onSave: (k, llm) => { saved.push([k, llm]); }, dismissable: true });
+    const input = document.querySelector("[data-settings] input") as HTMLInputElement;
+    input.value = "soniox-only";
+    (document.querySelector("[data-action='save-key']") as HTMLElement).click();
+    expect(saved).toEqual([["soniox-only", ""]]);
+  });
+
   it("starts hidden and toggles key visibility with the eye button", () => {
     openSettings({ onSave: () => {}, dismissable: true, currentKey: "sk-secret" });
     const input = document.querySelector("[data-settings] input") as HTMLInputElement;

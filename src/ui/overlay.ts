@@ -12,7 +12,7 @@ function escapeHtml(s: string): string {
 const COPY_ICON =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
 
-function copyBtn(id: number, field: "orig" | "trans", label: string): string {
+function copyBtn(id: number, field: "orig" | "trans" | "polish", label: string): string {
   return `<button class="copy" data-action="copy" data-id="${id}" data-field="${field}" title="${label}">${COPY_ICON}</button>`;
 }
 
@@ -27,7 +27,13 @@ function blockHtml(u: Utterance, live: boolean): string {
     const transCopy = live ? "" : copyBtn(u.id, "trans", "复制译文");
     transLine = `<div class="trans"><span class="txt">${escapeHtml(u.translation)}</span>${transCopy}</div>`;
   }
-  return `<div class="blk${live ? " live" : ""}">${origLine}${transLine}</div>`;
+  // Optional third line: the colloquial spoken-English rewrite (streams in after commit).
+  let polishLine = "";
+  if (u.polish) {
+    const polishCopy = live ? "" : copyBtn(u.id, "polish", "复制口语版");
+    polishLine = `<div class="polish"><span class="txt">${escapeHtml(u.polish)}</span>${polishCopy}</div>`;
+  }
+  return `<div class="blk${live ? " live" : ""}">${origLine}${transLine}${polishLine}</div>`;
 }
 
 const ICON_CLOSE =
@@ -81,7 +87,7 @@ export function renderOverlay(root: HTMLElement, store: CaptionStore, chrome: Ov
   // Icon-forward top bar. The ⠿ handle (data-drag) is the only drag region; the
   // buttons are siblings so they stay clickable. (Mic lives in a floating FAB; translation
   // direction is automatic via Soniox two-way, so there's no mode/sensitivity control.)
-  const copyAllBtn = `<button class="ctl iconbtn" data-action="copy-all" title="复制全部对话（中英）">${ICON_COPY_ALL}</button>`;
+  const copyAllBtn = `<button class="ctl iconbtn" data-action="copy-all" title="复制全部对话">${ICON_COPY_ALL}</button>`;
   const clearBtn = `<button class="ctl iconbtn clear" data-action="clear" title="清除字幕">${ICON_CLEAR}</button>`;
   const settingsBtn = `<button class="ctl iconbtn" data-action="open-settings" title="设置">${ICON_SETTINGS}</button>`;
   // "断句节奏" — how eagerly Soniox closes a sentence (max_endpoint_delay_ms). Remembered.

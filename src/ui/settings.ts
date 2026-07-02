@@ -15,13 +15,16 @@ export interface HotkeySettings {
 }
 
 export interface OpenSettingsOpts {
-  /** Persist the key. May be async; throwing/rejecting keeps the modal open with the error. */
-  onSave: (key: string) => void | Promise<void>;
+  /** Persist the keys. `llmKey` may be "" (polish feature off). May be async;
+   * throwing/rejecting keeps the modal open with the error. */
+  onSave: (key: string, llmKey: string) => void | Promise<void>;
   onCancel?: () => void;
   /** false on first run (no key yet) → no way to dismiss without setting a key. */
   dismissable: boolean;
   /** Prefill (e.g. when editing an existing key). */
   currentKey?: string;
+  /** Prefill for the optional OpenAI polish key ("" = feature off). */
+  currentLlmKey?: string;
   /** When present, render the opt-in global mute hotkey section. */
   hotkey?: HotkeySettings;
 }
@@ -73,6 +76,12 @@ export function openSettings(opts: OpenSettingsOpts): void {
         <input type="password" placeholder="sk-..." spellcheck="false" autocomplete="off" />
         <button class="reveal" data-action="toggle-reveal" type="button" tabindex="-1" title="显示">${EYE}</button>
       </div>
+      <div class="settings-subtitle">英文口语润色（可选）</div>
+      <div class="settings-hint">填入你的 OpenAI API Key（platform.openai.com），中文句子会多出一行更口语的英文说法；留空则不启用。</div>
+      <div class="key-field">
+        <input type="password" data-llm-key placeholder="sk-...（可留空）" spellcheck="false" autocomplete="off" />
+        <button class="reveal" data-action="toggle-reveal" type="button" tabindex="-1" title="显示">${EYE}</button>
+      </div>
       <div class="err"></div>
       ${hotkeySection}
       <div class="settings-actions">${cancelBtn}<button class="ctl save" data-action="save-key">保存并开始</button></div>
@@ -80,9 +89,11 @@ export function openSettings(opts: OpenSettingsOpts): void {
   document.body.appendChild(el);
   modalEl = el;
 
-  const input = el.querySelector("input") as HTMLInputElement;
+  const input = el.querySelector("input:not([data-llm-key])") as HTMLInputElement;
+  const llmInput = el.querySelector("input[data-llm-key]") as HTMLInputElement;
   const errEl = el.querySelector(".err") as HTMLElement;
   if (opts.currentKey) input.value = opts.currentKey;
+  if (opts.currentLlmKey) llmInput.value = opts.currentLlmKey;
   input.focus();
 
   const save = async () => {
@@ -93,26 +104,31 @@ export function openSettings(opts: OpenSettingsOpts): void {
     }
     errEl.textContent = "";
     try {
-      await opts.onSave(key);
+      await opts.onSave(key, llmInput.value.trim());
     } catch (e) {
       errEl.textContent = `保存失败：${e}`;
     }
   };
 
-  // Custom show/hide toggle (the native WebView password reveal is suppressed in CSS).
-  const revealBtn = el.querySelector("[data-action='toggle-reveal']") as HTMLButtonElement;
-  revealBtn.addEventListener("click", () => {
-    const masked = input.type === "password";
-    input.type = masked ? "text" : "password";
-    revealBtn.innerHTML = masked ? EYE_OFF : EYE;
-    revealBtn.title = masked ? "隐藏" : "显示";
-    input.focus();
-  });
+  // Custom show/hide toggles (the native WebView password reveal is suppressed in CSS) —
+  // one per key field, each wired to the input inside its own .key-field.
+  for (const revealBtn of el.querySelectorAll<HTMLButtonElement>("[data-action='toggle-reveal']")) {
+    const field = revealBtn.closest(".key-field")?.querySelector("input") as HTMLInputElement;
+    revealBtn.addEventListener("click", () => {
+      const masked = field.type === "password";
+      field.type = masked ? "text" : "password";
+      revealBtn.innerHTML = masked ? EYE_OFF : EYE;
+      revealBtn.title = masked ? "隐藏" : "显示";
+      field.focus();
+    });
+  }
 
   (el.querySelector("[data-action='save-key']") as HTMLElement).addEventListener("click", () => void save());
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") void save();
-  });
+  for (const inp of [input, llmInput]) {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") void save();
+    });
+  }
   if (opts.dismissable) {
     (el.querySelector("[data-action='cancel-settings']") as HTMLElement).addEventListener("click", () => {
       closeSettings();
